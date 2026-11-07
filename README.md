@@ -137,6 +137,7 @@ The server reads `.env` once at start. The file is never copied into `process.en
 | `npm run embed-catalog` | Point 2 (`-- --limit=800` for a sample into a temp folder) |
 | `npm run search-check` | The search core on the brief's examples with hand-written slips, no chat model |
 | `npm run slip-test` | How well a chat model fills the slip (`-- --provider=offline\|claude\|openai`) |
+| `npm run floor-check` | What the meaning floor removes and keeps on 31 searches (`-- --floor=0.6` to try another value) |
 | `npm run deps` | Installs packages; with `SHARED_NODE_MODULES` set, into that folder with `node_modules` as a junction |
 
 `tools/split-products.cjs` is a standalone utility that splits a catalog into one file per `main_category`. It is how the catalog was first studied (below). The app doesn't use it.
@@ -180,6 +181,7 @@ Size groups: letter sizes fold to one spelling ("X-Large" and "XL" are both XL, 
 The chat model's whole reply must be a fixed form: `action` (search, ask or answer), `question`, and a `change` with boxes for text, color, size, gender, prices, brand, sort, "cheaper than shown", boxes to clear, and "new search". It uses **structured output**: Claude's `output_config.format` and OpenAI's Responses `text.format`, both strict JSON schema. A forced tool call isn't used: Claude Opus 5.5 rejects forced `tool_choice`, and Ollama ignores it.
 
 - **The model sends a change; code merges it.** "Anything cheaper?" once came back as only `{ cheaperThanShown: true }`. Because code keeps the saved slip, the color and size survive without the model repeating them.
+- **A change of topic is caught twice.** The model decides first (its `newSearch` box). Code is the safety net: when the change brings search words and none of them appear in the saved ones, it starts a new search too. The model understands meaning, code checks words, so "Polo brand shirts" after "running shoes under $120" no longer keeps the $120 limit. Words that only name the change's own brand, color or size don't count, so "What about Columbia?" stays a refinement.
 - **"Cheaper" is code's job:** the price becomes just under the cheapest card on screen, and the cards already shown are hidden. With nothing on screen it's ignored, so a stray "cheaper" on a first message can't wipe out a real budget.
 - **The word-keeper** puts back any shopper word the model dropped ("gore-tex", "waterproof", "merino wool"). It can't remove words the model invents; temperature 0 on Offline is the defence there.
 - **The brand gate** checks a brand against two tally sheets. Nike (brand of 995 products, a word in 32 other titles) filters. Polo (brand of 1 product, a word in 392 other titles) **asks first**: two buttons, and no search runs until one is clicked. The click skips the slip model, because the button already says what changes, and the choice is remembered for the chat. A name that isn't a catalog brand ("merino") goes back into the search words.
@@ -191,6 +193,7 @@ The chat model's whole reply must be a fixed form: `action` (search, ask or answ
 - **Filters run on each listing on its own, before merging.** Merging first could combine orange from one listing, Small from another and a price from a third into a product that doesn't exist.
 - **Two rankers.** Words (BM25, k1 1.2, b 0.75): rare words count more, so "merrell" outweighs "shoes". Meaning (bge-small vectors): a dot product with every survivor. Words alone found 10 of 10 Merrell and Nike in testing but 1 of 10 for "keep my hands warm on the slopes", where meaning found 10.
 - **RRF** combines them by position only (1/(60 + place) from each list), so a BM25 score and a cosine never have to be compared.
+- **The meaning floor.** The meaning ranker scores every product that passed the filters, so without a limit, unrelated products would fill the free card slots when only a few really match. A product that matches none of the search words must reach a meaning score of 0.62 to stay; a product that matches any search word always stays. 0.62 sits between the measured scores of real matches (0.64 to 0.80) and unrelated products (0.42 to 0.60). `npm run floor-check` re-measures it on 31 searches: it removed 18 cards from 5 of them, all unrelated (a bag and a sock from "orange running shorts", a T-shirt from "Calvin Klein boxers"), and nothing that fit the request.
 - **Cards** fold listings by store + exact title. No fuzzy matching ever: a wrongly merged record is a product that doesn't exist. Up to 8 cards; the page size is one constant in one function (`cardsPerPage()`), ready for paging.
 - **Sorting** reorders the 40 most relevant cards, so "cheapest running shoes" stays about running shoes.
 
@@ -200,8 +203,9 @@ The model gets the shopper's message, the slip and the cards as data, and return
 
 - **Unknown product ids** are dropped; the rest get a highlight ring on their cards.
 - **Every `$` amount** must be a price on a card or a price limit the shopper gave ("under $120"). Anything else, such as a sum the model worked out, replaces the reply with "Here's what I found."
+- **On "Anything cheaper?"** the reply is told the cheapest price shown before, and that price is allowed too, so it can say "nothing under $23.89" honestly. A price it works out itself is still replaced.
 - **The stock sentence** has a slot for the real listed size; a reply that leaves the slot empty is replaced too.
-- **A failed reply** keeps the cards with "Here's what I found."
+- **A failed reply** keeps the cards with "Here's what I found.", or "Nothing in the catalog matched this search..." when there are no cards.
 
 ### Chat providers
 
@@ -277,14 +281,15 @@ Today the whole catalog is loaded into memory at start. Updates would work like 
 - **Unmapped colors and sizes:** about 19% of colors and 25% of sizes don't map, so those records fail a color or size filter.
 - **Unknown gender:** 11.4% of records have no gender anywhere, so they fail a gender filter.
 - **Number sizes are just numbers:** "10" from a men's shoe and "10" from a kids' shoe are the same group.
-- **Unrelated cards can fill free slots.** Meaning search ranks every product that passes the filters, so when only a few really match, the rest of the 8 slots fill with unrelated ones (the reply says which match). A fix is proposed, see Unfinished work.
+- **The meaning floor is a tuned number.** 0.62 comes from a small sample (7 searches, then checked on 31). A vague request could have a real match just under it, and one product can sit right on the line (the one Polo-brand boot scores 0.621 for "shirts").
+- **The new-topic check compares words, not meaning.** A synonym ("trainers" after "running shoes") counts as a new topic and drops the earlier price or size. The slip summary on the page shows what was kept.
 - **The local model's weak spots** (qwen2.5:7b):
   - It doesn't fix typos ("hikng" stays "hikng").
   - It ignored "any price is fine", so the price limit stays.
   - It sometimes leaves a follow-up size empty, though the word-keeper keeps "9.5" in the search words.
   - It sometimes misses a brand (North Face, Fox Racing), which then stays as a search word, so nothing false appears.
-  - It rarely marks a change of topic as a new search, so an earlier brand or price can stick. The slip summary shows it, and "New search" starts over.
-  - It sometimes adds the stock sentence when nobody asked, and once added a gender from the titles on screen.
+  - It rarely marks a change of topic as a new search. Code's new-topic check now catches that; "New search" on the page starts over by hand.
+  - It sometimes adds the stock sentence when nobody asked, and sometimes adds a gender from the titles on screen ("Men's").
   - Claude and OpenAI probably do better, but that is untested.
 - **Batch-sensitive vectors:** the quantized model scales numbers per batch, so the same product embedded with different neighbours differs very slightly (cosine about 0.998).
 - **No paging:** up to 8 cards per answer.
@@ -294,11 +299,11 @@ Today the whole catalog is loaded into memory at start. Updates would work like 
 
 ## Unfinished work
 
-- **A relevance floor for meaning-only results** (proposed: a product that matches no search word is shown only with a meaning score of at least 0.62). Waiting for a decision.
+- **Tuning for accuracy** is left for later, on purpose: the meaning floor (0.62), the RRF constant (60), the sort pool (40) and the color and size word lists are each one constant or one list in one file, with `npm run floor-check`, `npm run search-check` and `npm run slip-test` to measure a change. A larger set of judged searches would make those numbers firmer.
+- **The new-topic check could compare meaning** (the shopper vectors are already there) instead of words, so synonyms stop counting as a new topic.
 - **Claude and OpenAI are untested:** the adapters are built, but there were no keys. Run `npm run slip-test -- --provider=claude` once a key is in `.env`.
 - **Paging** isn't built; `cardsPerPage()` is the one place to start.
 - **Serving the built page from the API server** isn't built; use `npm run dev`.
-- **A code-side "new topic" check** (treat a change whose search words share nothing with the saved ones as a new search) would make the local model's follow-ups more robust. Not built: it changes a merge rule.
 - Time spent: *(to be filled in)*
 
 ---
@@ -313,12 +318,12 @@ server/
   catalog/     cleaning rules (brand, color, size, gender, text), brand sheets, catalog store, word index, BM25
   embedder/    sandbox flags, child launcher, embedder service (restart once), IPC messages, vector manifest
     child/     the sealed process: entry, sandbox check, engine, tokenizer, vendor file reads, guards
-  search/      filters, meaning rank, RRF, card merge, orders, the pipeline, the search engine
-  slip/        the slip types and form, prompt, merge, word-keeper, brand gate, fill-slip
+  search/      filters, meaning rank, RRF, meaning floor, card merge, orders, the pipeline, the search engine
+  slip/        the slip types and form, prompt, merge, new-topic check, word-keeper, shared word rules, brand gate, fill-slip
   chat/        providers (Claude, OpenAI-compatible), reply form, input and checks, conversation state, card views, chat service
   http/        routes, JSON in and out, the server
   main.ts      start and stop
-tools/         install-deps, dev, clean-catalog, embed-catalog, search-check, slip-test, split-products.cjs
+tools/         install-deps, dev, clean-catalog, embed-catalog, search-check, slip-test, floor-check, split-products.cjs
 tests/         node:test files, helpers, and the escape probe that runs inside the sandbox
 web/           the React page: api, state, components (header, chat, results, sheet, debug), motion, styles
 data/          products.json, brands.json, vectors.bin, manifest.json

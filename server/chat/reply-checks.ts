@@ -11,6 +11,9 @@ import type { Slip } from '../slip/slip-types.ts';
 
 export const SAFE_REPLY = "Here's what I found.";
 
+/* -- The fixed sentence when there is nothing to show: "Here's what I found." above an empty grid would read as a bug -- */
+export const NO_MATCH_REPLY = "Nothing in the catalog matched this search. Try loosening the price, color, size or brand.";
+
 const DOLLAR_AMOUNT = /\$\s?(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)/g;
 
 export type CheckedReply = Readonly<{
@@ -20,14 +23,15 @@ export type CheckedReply = Readonly<{
   unknownAmounts: number[];
 }>;
 
-export function checkReply(message: string, productIds: readonly string[], shownIds: ReadonlySet<string>, shownPrices: readonly number[], slip: Slip): CheckedReply {
+/* -- shownPrices: every price the shopper can see or just saw. fallback: what replaces a reply that fails a check -- */
+export function checkReply(message: string, productIds: readonly string[], shownIds: ReadonlySet<string>, shownPrices: readonly number[], slip: Slip, fallback: string = SAFE_REPLY): CheckedReply {
   const highlightIds = [...new Set(productIds.filter((id) => shownIds.has(id)))];
   const droppedIds = productIds.filter((id) => !shownIds.has(id));
   const allowed = [...shownPrices, ...[slip.minPrice, slip.maxPrice].filter((price): price is number => price !== null)];
   const unknownAmounts = dollarAmounts(message).filter((amount) => !allowed.some((price) => Math.abs(price - amount) < 0.005));
   /* -- A reply that kept the stock sentence's empty slot would state a size it never looked up -- */
   const keptEmptySlot = message.includes('<listed size>');
-  return { text: unknownAmounts.length || keptEmptySlot ? SAFE_REPLY : message.trim() || SAFE_REPLY, highlightIds, droppedIds, unknownAmounts };
+  return { text: unknownAmounts.length || keptEmptySlot ? fallback : message.trim() || fallback, highlightIds, droppedIds, unknownAmounts };
 }
 
 /* -- "$1,299.50" and "$ 45" both count -- */

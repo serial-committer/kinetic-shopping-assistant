@@ -27,7 +27,6 @@ target/
 
 # raw catalog: the reviewer supplies it, and it is over GitHub's 100 MB file limit
 catalog/products.json
-data/products.json
 Individual Catalog/
 
 # the vendored ONNX Runtime must ship, so undo the node_modules rule for it

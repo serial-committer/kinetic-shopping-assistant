@@ -1,0 +1,8 @@
+{
+  "model": "bge-small-en-v1.5 (quantized ONNX)",
+  "modelSha256": "6c9c6101a956d62dfb5e7190c538226c0c5bb9cb27b651234b6df063ee7dbfe4",
+  "productsSha256": "85c278865575cd7f17c86661f0f0b15db1db7a62cd42938eefd723e635ffed91",
+  "rows": 39834,
+  "dimension": 384,
+  "builtAt": "2026-11-07T23:23:20.293Z"
+}

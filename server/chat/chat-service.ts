@@ -29,7 +29,7 @@ import { brandButtonLabel, brandQuestionText, CHAT_FAILED_NOTE, CHAT_OFF_NOTE, F
 import { type ConversationState, withTurns } from './conversation-state.ts';
 import type { ProviderRegistry } from './provider-registry.ts';
 import { SAFE_REPLY } from './reply-checks.ts';
-import { priceJustUnderScreen, rebuildScreenCards, screenLines } from './screen-cards.ts';
+import { lowestPriceOnScreen, priceJustUnderScreen, rebuildScreenCards, screenLines } from './screen-cards.ts';
 import { writeReply } from './write-reply.ts';
 
 export type TurnKind = 'results' | 'question' | 'answer' | 'brand-question' | 'search-only';
@@ -108,7 +108,8 @@ export function createChatService(engine: SearchEngine, providers: ProviderRegis
   async function searchFromChange(turn: Turn, message: string, change: SlipChange, state: ConversationState, screen: readonly Card[]): Promise<ChatTurnResult> {
     logger.debug('P7a', 'slip before merge', { slip: state.slip, change });
     const merged = mergeSlip(state.slip, change, screen.length);
-    let excludedGroups = exclusionsAfter(change, state.excludedGroups);
+    if (merged.newTopicByCode) logger.debug('P7a', 'new topic: the new search words share nothing with the saved ones, so this starts a new search', { saved: state.slip.text, incoming: change.text });
+    let excludedGroups = exclusionsAfter(change, merged.startedOver, state.excludedGroups);
     let slip = merged.slip;
     if (merged.cheaperRequested) {
       slip = { ...slip, maxPrice: priceJustUnderScreen(screen) ?? slip.maxPrice };
@@ -136,14 +137,15 @@ export function createChatService(engine: SearchEngine, providers: ProviderRegis
       return finish(turn, 'brand-question', { text: question, highlightIds: [] }, null, pendingState, { action: 'search' }, brandQuestion);
     }
     if (decision.kind === 'words') slip = { ...slip, brand: null, text: joinWords(slip.text, decision.word) };
-    return searchAndReply(turn, message, slip, decision.kind === 'filter' ? decision.name : null, excludedGroups, { ...state, history }, 'search');
+    const cheaperThan = merged.cheaperRequested ? lowestPriceOnScreen(screen) : null;
+    return searchAndReply(turn, message, slip, decision.kind === 'filter' ? decision.name : null, excludedGroups, { ...state, history }, 'search', cheaperThan);
   }
 
-  /* -- P8 to P12 -- */
-  async function searchAndReply(turn: Turn, message: string, slip: Slip, brandKey: string | null, excludedGroups: readonly string[], state: ConversationState, action: string): Promise<ChatTurnResult> {
+  /* -- P8 to P12. cheaperThan: on a "cheaper" turn, the cheapest price the shopper saw before, which the reply may name -- */
+  async function searchAndReply(turn: Turn, message: string, slip: Slip, brandKey: string | null, excludedGroups: readonly string[], state: ConversationState, action: string, cheaperThan: number | null = null): Promise<ChatTurnResult> {
     const result = await engine.search({ text: slip.text, sort: slip.sort, filters: filtersFromSlip(slip, brandKey, new Set(excludedGroups)) });
     const reply = turn.provider
-      ? await writeReply({ provider: turn.provider, store, mode: 'search', message, slip, cards: result.cards, survivorCount: result.survivorCount, signal: turn.signal })
+      ? await writeReply({ provider: turn.provider, store, mode: 'search', message, slip, cards: result.cards, survivorCount: result.survivorCount, cheaperThan, signal: turn.signal })
       : { text: SAFE_REPLY, highlightIds: [] };
     const nextState: ConversationState = {
       ...state,
@@ -190,8 +192,8 @@ export function createChatService(engine: SearchEngine, providers: ProviderRegis
 }
 
 /* -- Cards excluded by "cheaper" only make sense while that price cap stands: a new search or a new price resets them -- */
-function exclusionsAfter(change: SlipChange, excluded: readonly string[]): readonly string[] {
-  if (change.newSearch || change.clear.includes('maxPrice') || (!change.cheaperThanShown && change.maxPrice !== null)) return [];
+function exclusionsAfter(change: SlipChange, startedOver: boolean, excluded: readonly string[]): readonly string[] {
+  if (startedOver || change.clear.includes('maxPrice') || (!change.cheaperThanShown && change.maxPrice !== null)) return [];
   return excluded;
 }
 

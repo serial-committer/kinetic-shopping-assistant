@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { checkReply, dollarAmounts, SAFE_REPLY } from '../server/chat/reply-checks.ts';
+import { checkReply, dollarAmounts, NO_MATCH_REPLY, SAFE_REPLY } from '../server/chat/reply-checks.ts';
 import { EMPTY_SLIP } from '../server/slip/slip-types.ts';
 
 const shown = new Set(['A', 'B']);
@@ -26,6 +26,11 @@ test('ids not on screen are dropped; ids on screen become highlights', () => {
   const checked = checkReply('Two picks.', ['A', 'Z', 'A'], shown, [], EMPTY_SLIP);
   assert.deepEqual(checked.highlightIds, ['A']);
   assert.deepEqual(checked.droppedIds, ['Z']);
+});
+
+test('a failed check uses the fallback the caller gives (the "nothing matched" sentence when there are no cards)', () => {
+  assert.equal(checkReply('Nothing under $23.89.', [], shown, [], EMPTY_SLIP, NO_MATCH_REPLY).text, NO_MATCH_REPLY);
+  assert.equal(checkReply('Nothing under $23.89.', [], shown, [23.89], EMPTY_SLIP, NO_MATCH_REPLY).text, 'Nothing under $23.89.', 'the price to beat is allowed');
 });
 
 test('a reply that left the stock sentence\'s size slot empty is replaced', () => {

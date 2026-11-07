@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import { checkBrand } from '../server/slip/brand-gate.ts';
 import { keepShopperWords } from '../server/slip/keep-words.ts';
 import { mergeSlip } from '../server/slip/merge-slip.ts';
+import { isNewTopic } from '../server/slip/new-topic.ts';
 import type { SlipChange } from '../server/slip/slip-form.ts';
 import { EMPTY_SLIP, type Slip } from '../server/slip/slip-types.ts';
 
@@ -67,6 +68,28 @@ test('merge: "Anything cheaper?" keeps color and size; "Only show blue ones" kee
   const current = slipOf({ text: 'running shorts', color: 'orange', size: 'small', maxPrice: 60 });
   assert.deepEqual(mergeSlip(current, changeOf({ cheaperThanShown: true }), 2).slip, current);
   assert.deepEqual(mergeSlip(current, changeOf({ color: 'blue' }), 2).slip, { ...current, color: 'blue' });
+});
+
+test('new topic: code starts a new search when the new search words share nothing with the saved ones', () => {
+  const saved = 'running shoes';
+  assert.equal(isNewTopic(saved, changeOf({ text: 'shirts', brand: 'Polo' })), true);
+  assert.equal(isNewTopic(saved, changeOf({ text: 'barefoot sandals for a beach wedding' })), true);
+  assert.equal(isNewTopic(saved, changeOf({ text: 'trail running shoes' })), false, 'shared words: a refinement');
+  assert.equal(isNewTopic(saved, changeOf({ text: 'running shoe' })), false, 'plural s compares loosely');
+  assert.equal(isNewTopic(saved, changeOf({ text: null, color: 'blue' })), false, 'no new words: a refinement');
+  assert.equal(isNewTopic('hiking boots', changeOf({ text: 'Columbia', brand: 'Columbia' })), false, 'only the brand named: a refinement');
+  assert.equal(isNewTopic(null, changeOf({ text: 'shirts' })), false, 'nothing saved yet');
+});
+
+test('merge: a new topic found by code starts from an empty slip and says so', () => {
+  const current = slipOf({ text: 'running shoes', maxPrice: 120 });
+  const merged = mergeSlip(current, changeOf({ text: 'shirts', brand: 'Polo' }), 8);
+  assert.deepEqual(merged.slip, slipOf({ text: 'shirts', brand: 'Polo' }));
+  assert.equal(merged.startedOver, true);
+  assert.equal(merged.newTopicByCode, true);
+  const refined = mergeSlip(current, changeOf({ text: 'trail running shoes' }), 8);
+  assert.equal(refined.slip.maxPrice, 120);
+  assert.equal(refined.newTopicByCode, false);
 });
 
 test('merge: unisex from the model means no gender preference', () => {

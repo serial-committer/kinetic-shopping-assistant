@@ -31,8 +31,14 @@ export function screenLines(store: CatalogStore, cards: readonly Card[]): Screen
   });
 }
 
-/* -- "Anything cheaper?": just under the lowest price showing on any card, or null when no card has a price -- */
-export function priceJustUnderScreen(cards: readonly Card[]): number | null {
+/* -- The lowest price showing on any card, or null when no card has a price -- */
+export function lowestPriceOnScreen(cards: readonly Card[]): number | null {
   const lowest = Math.min(...cards.map((card) => card.minPrice ?? Infinity));
-  return Number.isFinite(lowest) ? Math.max(0, Math.round((lowest - 0.01) * 100) / 100) : null;
+  return Number.isFinite(lowest) ? lowest : null;
+}
+
+/* -- "Anything cheaper?": the price limit becomes one cent under the lowest price on screen -- */
+export function priceJustUnderScreen(cards: readonly Card[]): number | null {
+  const lowest = lowestPriceOnScreen(cards);
+  return lowest === null ? null : Math.max(0, Math.round((lowest - 0.01) * 100) / 100);
 }

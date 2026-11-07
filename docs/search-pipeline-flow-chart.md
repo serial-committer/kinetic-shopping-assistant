@@ -19,6 +19,7 @@ Fig A: one search
     |
     v
   Point 10  combine-rrf.ts     each list gives 1/(60 + place); totals add; only places count
+            meaning-floor.ts   a product that matches NO search word needs a meaning score of 0.62 to stay
     |
     v
   Point 11  merge-cards.ts     same store + exact title -> one card; ordered by best listing; 8 cards
@@ -52,6 +53,22 @@ C = 1/63 + 1/61 = 0.03227     second
 B = 1/62        = 0.01613     third   (on one list only, still in the running)
 ```
 
+## Example: the meaning floor
+
+The meaning ranker scores every survivor, so without a limit, products that only vaguely resemble the request would fill the free card slots. The floor is a rule for products the meaning ranker picked on its own: they need a score (cosine similarity, 0 unrelated to 1 the same) of at least 0.62. A product that matches any search word is never touched by it.
+
+```text
+Fig D: "orange running shorts, size small"
+                           matches a word?   meaning score   result
+VIIOO running shorts       yes               0.744           shown (word match)
+Nike Women's Flat          yes ("running")   0.685           shown (word match)
+Bumbag shoulder bag        no                0.568           hidden (under 0.62)
+Heated gloves *            no                0.768           shown (over 0.62)
+* from "keep my hands warm on the slopes": no shared word, found by meaning alone
+```
+
+0.62 sits between the scores measured on the first 7 searches (real matches 0.64 to 0.80, unrelated 0.42 to 0.60). `npm run floor-check` re-measures it on 31 searches; `-- --floor=0.6` tries another value.
+
 ## Orders that aren't relevance
 
 | Case | Order |
@@ -75,6 +92,7 @@ B = 1/62        = 0.01613     third   (on one list only, still in the running)
 | Filter rules | `server/search/filters.ts` |
 | BM25 settings (k1 1.2, b 0.75) | `server/catalog/bm25.ts` |
 | RRF constant (60) | `server/search/combine-rrf.ts` |
+| The meaning floor (0.62) | `MEANING_FLOOR` in `server/search/meaning-floor.ts` |
 | Cards per answer (8), paging | `cardsPerPage()` in `server/search/merge-cards.ts` |
 | The sort pool (40) | `server/search/search-pipeline.ts` |
 | Rating order, sorts | `server/search/order-results.ts` |

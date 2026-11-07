@@ -10,7 +10,7 @@ Every test case for the project, grouped by feature. Add new cases at the end of
 
 **Your result** is yours to fill in.
 
-Last full run: 2026-11-08, `npm test` 54 of 54, `npm run typecheck` clean.
+Last full run: 2026-11-08, `npm test` 58 of 58, `npm run typecheck` clean.
 
 ---
 
@@ -27,7 +27,7 @@ Last full run: 2026-11-08, `npm test` 54 of 54, `npm run typecheck` clean.
 | A7 | A fresh `git clone` gives byte-identical files with no CRLF (hashes in `vendor/*/SOURCE.md` still match) | PASS (manual: 247 of 247 files identical) | |
 | A8 | `.gitignore` hides `catalog/products.json`, `Individual Catalog/`, `node_modules`, `.env`, `Build Notes/`, `web/dist`, and keeps `vendor/onnxruntime/node_modules`, `.env.example`, `data/` | PASS (manual: throwaway repo + `git check-ignore`) | |
 | A9 | `npm run typecheck` shows zero errors and zero warnings | PASS (tool) | |
-| A10 | `npm test` passes in full | PASS (tool: 54 of 54) | |
+| A10 | `npm test` passes in full | PASS (tool: 58 of 58) | |
 
 ## B. Settings and logging
 
@@ -74,7 +74,7 @@ Last full run: 2026-11-08, `npm test` 54 of 54, `npm run typecheck` clean.
 | D7 | After `close()` the child process is gone | PASS (unit) | |
 | D8 | When the parent is force-killed, the child ends on its own | Not run | |
 | D9 | The embed tool puts each vector on its product's row (sample of 800 compared with the reference engine) | PASS (manual: cosine 0.997 to 0.998) | |
-| D10 | The full build finishes and writes `vectors.bin` (61 MB) and `manifest.json` | PASS (tool: 39,834 in 30.1 minutes, 22.1 a second, 61,185,024 bytes) | |
+| D10 | The full build finishes and writes `vectors.bin` (61 MB) and `manifest.json` | PASS (tool: 39,834 in 30.1 minutes; rebuilt after the symbol rule in 26.1 minutes; 61,185,024 bytes; manifest matches) | |
 | D11 | No `node.exe` is left running after the embed tool ends | PASS (manual: sample and full run) | |
 
 ## E. Server start (Points 3 to 5)
@@ -113,8 +113,10 @@ Last full run: 2026-11-08, `npm test` 54 of 54, `npm run typecheck` clean.
 | F17 | "keep my hands warm on the slopes" (meaning) finds gloves and mittens | PASS (tool: ski and heated gloves) | |
 | F18 | Brand filter "merrell" plus "hiking shoes" returns only Merrell | PASS (tool) | |
 | F19 | Shopper sizes go through the same rules as the catalog ("small" is S, "size 9.5" is 9.5) | PASS (unit) | |
-| F20 | When few products really match, the free card slots don't fill with unrelated products | FAIL (tool: orange shorts cards 6 to 8 are a bag, a sock, cycling gloves; after "cheaper", 6 unrelated items). Fix proposed: meaning floor 0.62, waiting for Kapil | |
+| F20 | When few products really match, the free card slots don't fill with unrelated products | PASS after the meaning floor (tool + API: orange shorts shows 5 running items; "cheaper" shows 0 cards instead of 8 unrelated) | |
 | F21 | A search takes well under a second | PASS (tool: 10 to 85 ms) | |
+| F22 | The meaning floor removes only unrelated products (31 searches) | PASS (tool `npm run floor-check`: 18 cards removed from 5 searches, all unrelated; closest keeps: Polo boot 0.621, heated gloves 0.768) | |
+| F23 | A product that matches any search word is never removed by the floor; the order of kept products doesn't change | PASS (unit) | |
 
 ## G. Slip (Points 6 and 7)
 
@@ -141,6 +143,8 @@ Last full run: 2026-11-08, `npm test` 54 of 54, `npm run typecheck` clean.
 | G19 | A size the rules can't read (for example "petite") searches as a word instead of filtering everything out | PASS (unit) | |
 | G20 | The model never fills a box the shopper didn't ask for | Seen once (API): on "Anything cheaper?" the local model added gender "men" from the titles on screen. Known limit | |
 | G21 | The nullable boxes use `anyOf` with null (accepted by Claude, OpenAI and Ollama) without lowering the Offline baseline | PASS (tool: same scores as the tested schema) | |
+| G22 | New topic by code: new search words sharing nothing with the saved ones start a new search; shared words, no new words, or only the brand named keep refining | PASS (unit; API: Polo after running shoes drops the $120 limit, sandals after Polo drop the brand) | |
+| G23 | The new-topic check doesn't break follow-ups | PASS (tool: slip-test follow-ups still 11 of 13, same two misses) | |
 
 ## H. Reply (Point 12)
 
@@ -154,6 +158,8 @@ Last full run: 2026-11-08, `npm test` 54 of 54, `npm run typecheck` clean.
 | H6 | Nothing matched: the reply says so and suggests which filter to loosen | PASS (API: "cheaper" with no running shorts left) | |
 | H7 | A failed reply keeps the cards with "Here's what I found." (WARN) | PASS (unit) | |
 | H8 | The stock sentence names the product's real listed size, never the example "Small" | PASS (API, after the fix: "9.5 B - Medium US"); an unfilled slot is replaced (unit) | |
+| H9 | On "Anything cheaper?" the reply may name the cheapest price shown before; a worked-out price is still replaced | PASS (unit; API: the reply now explains, instead of the fixed sentence) | |
+| H10 | A replaced reply with no cards says "Nothing in the catalog matched this search..." | PASS (unit) | |
 
 ## I. Web interface
 
@@ -186,7 +192,7 @@ Last full run: 2026-11-08, `npm test` 54 of 54, `npm run typecheck` clean.
 | J8 | "Is the first one waterproof?" answers from the cards on screen | PASS (API: says the catalog doesn't say) | |
 | J9 | Every product in every reply is a real catalog record | PASS (API: cards are built from ids the server looked up) | |
 | J10 | No stray processes after stopping `npm run dev`; the debug poller stops | Poller: PASS (browser). API server: PASS (0 `node.exe` after stop). `npm run dev` stop: checked at the end of the build | |
-| J11 | Switching from one kind of item to another doesn't keep the old brand or price | FAIL with the local model ("Polo brand shirts" then sandals kept Brand: Polo and Up to $120). Visible in the slip summary; "New search" starts over. Code-side fix proposed | |
+| J11 | Switching from one kind of item to another doesn't keep the old brand or price | PASS after the new-topic check (API: running shoes, then Polo, then sandals; each starts clean) | |
 
 ---
 

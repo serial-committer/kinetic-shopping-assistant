@@ -13,12 +13,14 @@ const FEATURE_CHARS = 160;
 
 export type ReplyMode = 'search' | 'answer';
 
-export function buildReplyInput(store: CatalogStore, mode: ReplyMode, message: string, slip: Slip, cards: readonly Card[], survivorCount: number): string {
+/* -- cheaperThan: on an "Anything cheaper?" turn, the cheapest price the shopper saw before, so the reply can name it -- */
+export function buildReplyInput(store: CatalogStore, mode: ReplyMode, message: string, slip: Slip, cards: readonly Card[], survivorCount: number, cheaperThan: number | null = null): string {
   const products = cards.map((card) => (mode === 'answer' ? fullRecord(store, card) : cardSummary(store, card)));
   const result = mode === 'answer' ? 'The shopper is asking about the products on screen.' : `${survivorCount} listings passed the filters; these are the best ${cards.length} products.`;
   return [
     `Shopper: ${message}`,
     `Search form: ${JSON.stringify(slip)}`,
+    ...(cheaperThan === null ? [] : [`The shopper asked for something cheaper than the products shown before; the cheapest of those cost $${cheaperThan}.`]),
     result,
     `Products: ${products.length ? JSON.stringify(products, null, 1) : 'none'}`,
   ].join('\n');

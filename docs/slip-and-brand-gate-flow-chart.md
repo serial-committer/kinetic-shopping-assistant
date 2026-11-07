@@ -18,7 +18,8 @@ Fig A: one shopper message
      |-- action "answer" -> skip the search; Point 12 answers from the full records of the cards on screen
      v
   Point 7a  merge-slip.ts          the change goes into the saved slip
-            newSearch -> start empty | clear -> empty those boxes | null or "" -> keep | unisex -> no preference
+            new search -> start empty, when the model says so OR when code sees no shared search words (new-topic.ts)
+            clear -> empty those boxes | null or "" -> keep | unisex -> no preference
             cheaperThanShown (with cards on screen) -> code sets maxPrice just under the cheapest card
                                                        and hides the cards already shown
      v
@@ -44,6 +45,22 @@ Fig B: three messages, one slip
 ```
 
 "Anything cheaper?" came back from the model as just `{ cheaperThanShown: true }`. That is why the model sends a *change* and code merges it: the color and size survive because the model never has to repeat them.
+
+## Example: a change of topic, caught by the model or by code
+
+The model decides first, with its `newSearch` box. Code is the safety net: if the change brings search words and none of them appear in the saved ones, the shopper has moved to a different item. The model understands meaning ("trainers" are running shoes); code checks words and never forgets. Between them, a change of item is rarely missed.
+
+```text
+Fig D: after "running shoes under $120"
+                                   model's newSearch   shared words           result
+"Actually, show me sandals"        true                -                      new search
+"Polo brand shirts"                false (missed)      none                   new search (code)
+"trail running shoes"              false               "running", "shoes"     refine: keeps under $120
+"Only show blue ones"              false               no new words           refine
+"What about Columbia?"             false               only the brand named   refine
+```
+
+The cost: a synonym ("trainers" after "running shoes") counts as a new topic and drops the price. The slip summary on the page shows what the search kept, so the shopper sees it.
 
 ## Example: the brand gate asks first
 
@@ -75,7 +92,8 @@ Point 4  button          the browser sends only the choice. The slip model is sk
 | The model's instructions | `server/slip/slip-prompt.ts` (then run `npm run slip-test`) |
 | The form's boxes | `server/slip/slip-form.ts` and `server/slip/slip-types.ts` |
 | Merge rules | `server/slip/merge-slip.ts` |
-| Filler words | `server/slip/keep-words.ts` |
+| When code calls a new topic | `server/slip/new-topic.ts` |
+| Filler words, how words compare | `server/slip/shopper-words.ts` |
 | When a brand asks first | `server/slip/brand-gate.ts` |
 | Fixed sentences | `server/chat/chat-wording.ts` |
 | The order of the steps | `server/chat/chat-service.ts` |

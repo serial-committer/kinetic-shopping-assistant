@@ -10,6 +10,7 @@ import { buildWordIndex } from '../server/catalog/word-index.ts';
 import { combineByPosition, rrfPoints } from '../server/search/combine-rrf.ts';
 import { type FilterSet, NO_FILTERS } from '../server/search/filter-set.ts';
 import { applyFilters } from '../server/search/filters.ts';
+import { applyMeaningFloor, MEANING_FLOOR } from '../server/search/meaning-floor.ts';
 import { cardsPerPage, mergeIntoCards } from '../server/search/merge-cards.ts';
 import { rankByRating, sortCards } from '../server/search/order-results.ts';
 import { fakeStore, product } from './helpers/fake-catalog.ts';
@@ -62,6 +63,16 @@ test('BM25: a rare word outweighs a common one, and only survivors are scored', 
   const onlyShoes = new Uint8Array(texts.length);
   onlyShoes[3] = 1;
   assert.deepEqual(rankByWords(index, 'merrell hiking shoes', onlyShoes).map(({ row }) => row), [3]);
+});
+
+test('meaning floor: a product matching no search word needs 0.62; a word match always stays; order is kept', () => {
+  const ranked = [5, 1, 7, 3, 9];
+  const wordMatches = new Set([1, 3]);
+  const meaning = new Map([[5, 0.7], [1, 0.41], [7, 0.619], [3, 0.3], [9, 0.62]]);
+  const { keptRows, hiddenRows } = applyMeaningFloor(ranked, wordMatches, meaning);
+  assert.deepEqual(keptRows, [5, 1, 3, 9]);
+  assert.deepEqual(hiddenRows, [7]);
+  assert.equal(MEANING_FLOOR, 0.62);
 });
 
 test('RRF: each list gives 1/(60 + place) and only places count', () => {

@@ -15,9 +15,12 @@ Read this first when resuming, then README.md for the full decision list and TES
 | 7 | Web page: chat, cards, sheet, brand buttons, slip summary, New search, debug panel, themes | done, verified in the browser |
 | 8 | Docs and tests | done (54 tests); walkthrough and assessment for Kapil still to come |
 
-**Open:** Kapil's decision on the meaning floor (option A: a product that matches no search word must score at least 0.62 on meaning; option B: keep as built). Evidence: orange running shorts showed a bag, a sock and cycling gloves in slots 6 to 8; after "cheaper", 6 unrelated items. Real matches score 0.64 to 0.80, unrelated 0.42 to 0.60. The Polo boot scores 0.621 for "shirts". If A: one constant and one filter in `server/search/search-pipeline.ts` (`rankByRelevance`), then update README limits, TEST-PLAN F20 and the search flow chart.
+**Decided 2026-11-08 (Kapil):**
+- **Meaning floor 0.62** (`server/search/meaning-floor.ts`): a product that matches no search word needs a cosine of 0.62 to stay. `npm run floor-check` on 31 searches removed 18 cards, all unrelated, none that fit. His framing: the exercise is about architecture and implementation quality; accuracy tuning is a later task, so keep every tunable number one constant with a tool to measure it.
+- **New-topic check, model plus code** (`server/slip/new-topic.ts`, used by `merge-slip.ts`): the model's `newSearch`, or code when the change's search words share none with the saved ones (brand, color and size words of the change don't count). His words: one works with possibility, the other with plausibility. Slip-test follow-ups unchanged at 11 of 13.
+- Follow-on fix: a "cheaper" turn tells the reply the cheapest price shown before (allowed by the price check), and a replaced reply with no cards says "Nothing in the catalog matched...".
 
-**In flight when this was written:** a full vector rebuild after the symbol-only junk rule changed `data/products.json` (2026-11-08 04:27). Until `data/manifest.json` is rewritten, a fresh server start refuses the vectors (words only). Sync `data/products.json`, `data/brands.json`, `data/vectors.bin` and `data/manifest.json` together, never one without the others.
+**Data:** rebuilt 2026-11-08 after the symbol-only junk rule (26.1 minutes); the manifest matches `data/products.json`. Sync `data/products.json`, `data/brands.json`, `data/vectors.bin` and `data/manifest.json` together, never one without the others.
 
 ## Run facts
 
@@ -69,3 +72,4 @@ Read this first when resuming, then README.md for the full decision list and TES
 
 - **2026-11-08, chunks 1 to 3.** Skeleton, cleaning, sealed embedder, vectors. Synced by Kapil.
 - **2026-11-08, chunks 4 to 7.** Search core, slip, providers, reply checks, HTTP API, web page, debug panel. Verified: 54 tests, slip test on Offline, the brief's conversations through the API and in the browser (dark, light, narrow, wide). Walkthrough and assessment deferred to the end by Kapil.
+- **2026-11-08, decisions round.** Meaning floor, new-topic check, cheaper reply price, no-match sentence, `npm run floor-check`, data rebuilt. 58 tests.

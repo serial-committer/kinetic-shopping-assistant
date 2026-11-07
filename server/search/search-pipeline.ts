@@ -4,6 +4,7 @@
         P9   bm25.ts            words, survivors only
              rank-by-meaning.ts bge-small, survivors only (skipped when vectors or the embedder are off)
         P10  combine-rrf.ts     points from places on both lists
+             meaning-floor.ts   a product matching no search word needs a meaning score of 0.62 to stay
         P11  merge-cards.ts     repeats fold into one card, one page of cards
     No search text means best rated first. A sort the shopper asked for reorders the most relevant cards
     (the top 40), so "cheapest running shoes" stays about running shoes instead of jumping to the cheapest item in stock.
@@ -18,6 +19,7 @@ import { rrfPoints } from './combine-rrf.ts';
 import type { FilterSet } from './filter-set.ts';
 import { applyFilters, type Survivors } from './filters.ts';
 import { type Card, cardsPerPage, mergeIntoCards } from './merge-cards.ts';
+import { applyMeaningFloor, MEANING_FLOOR } from './meaning-floor.ts';
 import { rankByRating, sortCards } from './order-results.ts';
 import { rankByMeaning } from './rank-by-meaning.ts';
 
@@ -78,7 +80,12 @@ async function rankByRelevance(store: CatalogStore, embedQuery: QueryEmbedder | 
 
   const points = [...rrfPoints(byWords.map(({ row }) => row), byMeaning.map(({ row }) => row))].sort((a, b) => b[1] - a[1]);
   logger.debug('P10', 'RRF totals, top 10', points.slice(0, LOGGED_TOP).map(([row, total]) => ({ title: shortTitle(store, row), points: Number(total.toFixed(5)) })));
-  return { rankedRows: points.map(([row]) => row), ranking: 'words+meaning' };
+
+  const wordMatchRows = new Set(byWords.map(({ row }) => row));
+  const meaningScores = new Map(byMeaning.map(({ row, score }) => [row, score]));
+  const { keptRows, hiddenRows } = applyMeaningFloor(points.map(([row]) => row), wordMatchRows, meaningScores);
+  if (hiddenRows.length) logger.debug('P10', `meaning floor ${MEANING_FLOOR}: hid ${hiddenRows.length} products that match no search word`, { kept: keptRows.length });
+  return { rankedRows: keptRows, ranking: 'words+meaning' };
 }
 
 function logTop(ranker: string, scored: readonly ScoredRow[], store: CatalogStore): void {
