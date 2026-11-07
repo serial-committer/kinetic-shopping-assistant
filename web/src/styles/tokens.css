@@ -1,0 +1,93 @@
+/* ---------------------------------------
+    Design tokens for both themes. Light is the default; dark applies when the system prefers it (unless the shopper
+    picked light) or when the shopper picked dark. Every component reads these variables, so a theme switch is one
+    attribute change, and colors cross-fade through the transitions in base.css.
+    Shape rule: panels and cards use --radius-panel, images inside them --radius-inner, and everything you can press
+    (buttons, chips, inputs, the dropdown) is a full pill.
+--------------------------------------- */
+
+:root {
+  --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Consolas, monospace;
+
+  --radius-panel: 18px;
+  --radius-inner: 12px;
+  --radius-pill: 999px;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --duration-press: 140ms;
+  --duration-ui: 200ms;
+  --duration-theme: 260ms;
+
+  /* -- Layer order: header, then dialogs (native top layer), nothing else stacks -- */
+  --layer-header: 10;
+  --layer-debug-button: 20;
+
+  /* -- Light. color-scheme makes scrollbars and form controls follow the chosen theme, not just the system -- */
+  color-scheme: light;
+  --bg: #f9f9f9;
+  --bg-glow: rgb(0 149 236 / 0.1);
+  --surface: rgb(255 255 255 / 0.72);
+  --surface-strong: rgb(255 255 255 / 0.94);
+  --surface-sunken: rgb(16 20 28 / 0.04);
+  --border: rgb(16 20 28 / 0.08);
+  --border-strong: rgb(16 20 28 / 0.16);
+  --text: #14171c;
+  --text-muted: #5a6170;
+  --text-faint: #7c8391;
+  --accent: #0095ec;
+  --accent-ink: #006fae;
+  --accent-soft: rgb(0 149 236 / 0.12);
+  --on-accent: #04131f;
+  --image-bg: #ffffff;
+  --shadow-soft: 0 1px 2px rgb(16 20 28 / 0.05), 0 12px 32px rgb(16 20 28 / 0.07);
+  --shadow-lifted: 0 2px 6px rgb(16 20 28 / 0.08), 0 24px 64px rgb(16 20 28 / 0.16);
+  --scrim: rgb(16 20 28 / 0.28);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #010000;
+    --bg-glow: rgb(236 149 0 / 0.11);
+    --surface: rgb(255 255 255 / 0.045);
+    --surface-strong: rgb(24 20 16 / 0.9);
+    --surface-sunken: rgb(255 255 255 / 0.035);
+    --border: rgb(255 255 255 / 0.08);
+    --border-strong: rgb(255 255 255 / 0.16);
+    --text: #f3eee7;
+    --text-muted: #a8a196;
+    --text-faint: #78726a;
+    --accent: #ec9500;
+    --accent-ink: #f2a93b;
+    --accent-soft: rgb(236 149 0 / 0.15);
+    --on-accent: #1a0f00;
+    --image-bg: #edeae5;
+    --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 32px rgb(0 0 0 / 0.45);
+    --shadow-lifted: 0 2px 6px rgb(0 0 0 / 0.5), 0 24px 64px rgb(0 0 0 / 0.6);
+    --scrim: rgb(0 0 0 / 0.55);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #010000;
+  --bg-glow: rgb(236 149 0 / 0.11);
+  --surface: rgb(255 255 255 / 0.045);
+  --surface-strong: rgb(24 20 16 / 0.9);
+  --surface-sunken: rgb(255 255 255 / 0.035);
+  --border: rgb(255 255 255 / 0.08);
+  --border-strong: rgb(255 255 255 / 0.16);
+  --text: #f3eee7;
+  --text-muted: #a8a196;
+  --text-faint: #78726a;
+  --accent: #ec9500;
+  --accent-ink: #f2a93b;
+  --accent-soft: rgb(236 149 0 / 0.15);
+  --on-accent: #1a0f00;
+  --image-bg: #edeae5;
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 32px rgb(0 0 0 / 0.45);
+  --shadow-lifted: 0 2px 6px rgb(0 0 0 / 0.5), 0 24px 64px rgb(0 0 0 / 0.6);
+  --scrim: rgb(0 0 0 / 0.55);
+}

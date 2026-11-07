@@ -1,0 +1,36 @@
+*/node_modules/
+node_modules/
+
+apps/client/.next/
+apps/client/out/
+apps/server/dist/
+
+.idea
+
+*tsbuildinfo
+
+.env
+.env.local
+.env.*.local
+kinetic-env.d.ts
+
+.DS_Store
+Thumbs.db
+
+*.log
+npm-debug.log*
+
+*/dist
+.build/
+.mvn/
+target/
+
+# raw catalog: the reviewer supplies it, and it is over GitHub's 100 MB file limit
+catalog/products.json
+Individual Catalog/
+
+# the vendored ONNX Runtime must ship, so undo the node_modules rule for it
+!vendor/onnxruntime/node_modules/
+
+# learning notes for each build round, not part of the product
+Build Notes/

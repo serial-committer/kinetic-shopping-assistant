@@ -1,0 +1,14 @@
+# Every text file is stored and checked out with LF endings, so hashed files (vocab.txt, data/*.json) match on every machine.
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binary files are never converted.
+*.onnx binary
+*.wasm binary
+*.bin binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary

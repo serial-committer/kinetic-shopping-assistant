@@ -1,0 +1,129 @@
+/* ---------------------------------------
+    The top bar: frosted glass, sticky, one line. The dropdown is a customisable select (base-select), so its list
+    and chevron are styled by us rather than drawn by the operating system.
+--------------------------------------- */
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--layer-header);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 64px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  backdrop-filter: blur(20px) saturate(1.8);
+  transition: background-color var(--duration-theme) ease, border-color var(--duration-theme) ease;
+}
+
+.app-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.theme-button {
+  min-width: 72px;
+}
+
+/* -- The dropdown -- */
+.provider-select,
+.provider-select::picker(select) {
+  appearance: base-select;
+}
+
+.provider-select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 14px 0 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-strong);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 13.5px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color var(--duration-ui) ease;
+}
+
+.provider-select:disabled {
+  cursor: default;
+  color: var(--text-muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .provider-select:hover:not(:disabled) {
+    border-color: var(--accent);
+  }
+}
+
+/* -- The chevron: two borders turned 45 degrees, turning over while the list is open -- */
+.provider-select::picker-icon {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-right: 1.6px solid currentColor;
+  border-bottom: 1.6px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform var(--duration-ui) var(--ease-out);
+}
+
+.provider-select:open::picker-icon {
+  transform: translateY(2px) rotate(225deg);
+}
+
+.provider-select::picker(select) {
+  margin-top: 6px;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--surface-strong);
+  box-shadow: var(--shadow-lifted);
+  min-width: 14rem;
+}
+
+.provider-select option {
+  padding: 9px 12px;
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 13.5px;
+}
+
+.provider-select option:checked {
+  background: var(--accent-soft);
+}
+
+.provider-select option::checkmark {
+  display: none;
+}
+
+@media (max-width: 599px) {
+  .app-header {
+    padding: 0 12px;
+  }
+
+  .app-title {
+    font-size: 14.5px;
+  }
+
+  .provider-select {
+    max-width: 46vw;
+  }
+}

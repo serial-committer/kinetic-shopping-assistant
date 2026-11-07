@@ -1,0 +1,208 @@
+/* ---------------------------------------
+    The debug panel: a small fixed button, and a window of about 92% x 88% of the screen with the log groups.
+    Level colors are deliberately quiet: only WARN and ERROR stand out.
+--------------------------------------- */
+
+/* -- Bottom right: on wide screens that corner is the end of the product grid, never the message box -- */
+.debug-button {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: var(--layer-debug-button);
+  min-height: 30px;
+  padding: 0 12px;
+  font-size: 12.5px;
+  box-shadow: var(--shadow-soft);
+}
+
+.debug-window {
+  width: 92vw;
+  height: 88dvh;
+  max-width: none;
+  max-height: none;
+}
+
+.debug-content {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  height: 100%;
+}
+
+.debug-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.debug-title {
+  margin: 0 8px 0 0;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.debug-levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.debug-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.level-chip {
+  padding: 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  transition: background-color var(--duration-ui) ease, color var(--duration-ui) ease, transform var(--duration-press) var(--ease-out);
+}
+
+.level-chip.is-on {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+.level-chip:active {
+  transform: scale(0.96);
+}
+
+.debug-problem {
+  margin: 0;
+  padding: 8px 18px;
+  color: var(--accent-ink);
+  font-size: 13px;
+}
+
+.debug-groups {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px 18px 24px;
+}
+
+.debug-empty {
+  color: var(--text-muted);
+}
+
+.log-group {
+  margin-top: 14px;
+}
+
+.log-group-title {
+  margin: 0 0 6px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.log-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-inner);
+  overflow: hidden;
+}
+
+.log-row + .log-row {
+  border-top: 1px solid var(--border);
+}
+
+.log-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.log-time {
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.log-level {
+  min-width: 44px;
+  color: var(--text-muted);
+}
+
+.log-level.level-warn,
+.log-level.level-error {
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+.log-source {
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+}
+
+.log-step {
+  color: var(--text-muted);
+}
+
+.log-message {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--font-ui);
+  font-size: 13px;
+}
+
+.log-copy {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.log-data {
+  padding: 0 10px 8px 10px;
+}
+
+.log-data summary {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.log-data pre {
+  margin: 6px 0 0;
+  padding: 10px;
+  max-height: 320px;
+  overflow: auto;
+  border-radius: 10px;
+  background: var(--surface-sunken);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+@media (max-width: 699px) {
+  .debug-window {
+    width: calc(100vw - 16px);
+    height: calc(100dvh - 32px);
+  }
+
+  .debug-actions {
+    margin-left: 0;
+  }
+
+  .log-line {
+    flex-wrap: wrap;
+  }
+}
