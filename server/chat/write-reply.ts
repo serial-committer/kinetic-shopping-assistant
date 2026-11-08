@@ -31,7 +31,9 @@ export type ReplyRequest = Readonly<{
 export async function writeReply({ provider, store, mode, message, slip, cards, survivorCount, cheaperThan = null, signal }: ReplyRequest): Promise<WrittenReply> {
   const fallback = cards.length ? SAFE_REPLY : NO_MATCH_REPLY;
   const input = buildReplyInput(store, mode, message, slip, cards, survivorCount, cheaperThan);
-  logger.debug('P12', 'reply request', { provider: provider.label, input });
+  /* -- DEBUG names the products by id (data/products.json has each record); the whole prompt input goes to TRACE -- */
+  logger.debug('P12', 'reply request', { provider: provider.label, mode, productIds: cards.map((card) => store.products[card.bestRow]!.id), survivorCount, cheaperThan });
+  logger.trace('P12', 'reply request input', { input });
   let json: unknown;
   try {
     json = await provider.completeJson({ purpose: 'reply', instructions: REPLY_INSTRUCTIONS, input, schemaName: 'reply', schema: REPLY_FORM_SCHEMA, signal });

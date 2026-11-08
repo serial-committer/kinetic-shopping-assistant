@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- The tab icon: a shopping cart, dark on a light browser theme and light on a dark one (the same two colors as the PNG sets). -->
+  <style>
+    .cart { fill: #010000; stroke: #010000; }
+    @media (prefers-color-scheme: dark) {
+      .cart { fill: #F9F9F9; stroke: #F9F9F9; }
+    }
+  </style>
+  <g class="cart" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path fill="none" stroke-width="2.5" d="M4.2 5.2H6.9L7.7 8.6"/>
+    <path d="M7.6 9.2H27.6L23.4 20H10.6Z"/>
+    <circle cx="10" cy="25.8" r="2" stroke="none"/>
+    <circle cx="23.5" cy="25.8" r="2" stroke="none"/>
+  </g>
+</svg>

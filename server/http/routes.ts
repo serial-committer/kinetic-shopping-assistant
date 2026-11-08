@@ -3,6 +3,7 @@
         GET  /api/config              providers set up (id, label, model; never a key), debug panel on or off
         POST /api/chat                one shopper message
         POST /api/brand-choice        one brand button click
+        POST /api/more                the next 8 cards for the search on screen ("Load more")
         GET  /api/debug/logs?after=N  log entries newer than N; this route only exists when DEBUG_PANEL=true
     A chat request is aborted when the browser goes away mid-reply (for example because the shopper sent a new
     message), so no provider call runs for nobody.
@@ -51,6 +52,14 @@ export function buildRoutes({ config, engine, providers, chat }: RouteDependenci
     if (!state.pendingBrand) throw new HttpError(409, 'there is no brand question waiting for an answer');
     const signal = abortWhenClientLeaves(response);
     sendJson(response, 200, await chat.handleBrandChoice({ choice, providerId: providerIdOf(body), state, signal }));
+  });
+
+  routes.set('POST /api/more', async (request, response) => {
+    const body = (await readJsonBody(request)) as Record<string, unknown>;
+    const state = readConversationState(body['state'], engine.store);
+    if (state.screenIds.length === 0) throw new HttpError(409, 'there are no cards on screen to load more of');
+    if (state.pendingBrand) throw new HttpError(409, 'a brand question is waiting for an answer');
+    sendJson(response, 200, await chat.handleLoadMore({ state }));
   });
 
   if (config.debugPanel) {

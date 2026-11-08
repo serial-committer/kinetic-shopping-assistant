@@ -19,11 +19,48 @@
   transition: background-color var(--duration-theme) ease, border-color var(--duration-theme) ease;
 }
 
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* -- One logo per theme: the light one by default, the dark one when the dark theme is on (system or chosen) -- */
+.app-logo {
+  flex: none;
+  width: 28px;
+  height: 28px;
+}
+
+.app-logo.for-dark-theme {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .app-logo.for-light-theme {
+    display: none;
+  }
+
+  :root:not([data-theme='light']) .app-logo.for-dark-theme {
+    display: block;
+  }
+}
+
+:root[data-theme='dark'] .app-logo.for-light-theme {
+  display: none;
+}
+
+:root[data-theme='dark'] .app-logo.for-dark-theme {
+  display: block;
+}
+
 .app-title {
   margin: 0;
-  font-size: 16px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

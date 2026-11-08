@@ -2,10 +2,11 @@
     The chat on the page: the messages shown, the cards on screen, and the conversation state the server hands back
     after every turn (the browser carries it; the server keeps nothing). Sending a new message while one is still
     running cancels the old request, so its answer can never land on top of the newer one.
+    "Load more" adds the next cards below the ones on screen, without a chat message.
 --------------------------------------- */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { isAbort, sendBrandChoice, sendChatMessage } from '../api/api-client.ts';
+import { isAbort, sendBrandChoice, sendChatMessage, sendLoadMore } from '../api/api-client.ts';
 import type { BrandChoice, BrandQuestion, CardView, ChatTurnResult, ConversationState, TurnKind } from '../api/api-types.ts';
 import { uiLogger } from '../logging/ui-logger.ts';
 
@@ -24,10 +25,15 @@ export type Conversation = Readonly<{
   items: readonly ChatItem[];
   cards: readonly CardView[];
   searched: boolean;
+  /* -- A chat message is on its way (shows the "searching" bubble) -- */
   pending: boolean;
+  /* -- More cards exist for the search on screen, and "Load more" is fetching them -- */
+  hasMore: boolean;
+  loadingMore: boolean;
   state: ConversationState | null;
   send(message: string): void;
   chooseBrand(itemKey: string, choice: BrandChoice): void;
+  loadMore(): void;
   /* -- Starts over: cancels any request, clears the chat, the cards and the saved slip -- */
   reset(): void;
 }>;
@@ -40,6 +46,8 @@ export function useConversation(providerId: string | null): Conversation {
   const [cards, setCards] = useState<CardView[]>([]);
   const [searched, setSearched] = useState(false);
   const [pending, setPending] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [state, setState] = useState<ConversationState | null>(null);
   const inFlight = useRef<AbortController | null>(null);
   const stateRef = useRef<ConversationState | null>(null);
@@ -48,21 +56,26 @@ export function useConversation(providerId: string | null): Conversation {
   /* -- Nothing keeps running after the page section unmounts -- */
   useEffect(() => () => inFlight.current?.abort(), []);
 
-  const run = useCallback((request: (signal: AbortSignal) => Promise<ChatTurnResult>, label: string) => {
+  /* -- One request at a time: a newer one cancels the older. "more" requests show on the button, not in the chat -- */
+  const run = useCallback((request: (signal: AbortSignal) => Promise<ChatTurnResult>, label: string, kind: 'chat' | 'more' = 'chat') => {
     inFlight.current?.abort();
     const controller = new AbortController();
     inFlight.current = controller;
-    setPending(true);
+    const setBusy = kind === 'more' ? setLoadingMore : setPending;
+    setPending(false);
+    setLoadingMore(false);
+    setBusy(true);
     request(controller.signal)
       .then((result) => {
-        uiLogger.info('turn', `${label}: ${result.kind}`, { cards: result.cards?.length ?? 'unchanged', ms: result.meta.ms }, result.messageId);
-        setItems((current) => [...current, { key: keyOf(), role: 'assistant', text: result.reply.text, kind: result.kind, notice: result.notice, brandQuestion: result.brandQuestion }]);
-        if (result.cards !== null) {
-          setCards(result.cards);
-          setSearched(true);
-        } else if (result.kind === 'answer') {
-          setSearched(true);
+        uiLogger.info('turn', `${label}: ${result.kind}`, { cards: result.cards?.length ?? 'unchanged', hasMore: result.hasMore, ms: result.meta.ms }, result.messageId);
+        if (result.kind === 'more') {
+          setCards((current) => [...current, ...(result.cards ?? [])]);
+        } else {
+          setItems((current) => [...current, { key: keyOf(), role: 'assistant', text: result.reply.text, kind: result.kind, notice: result.notice, brandQuestion: result.brandQuestion }]);
+          if (result.cards !== null) setCards(result.cards);
+          if (result.cards !== null || result.kind === 'answer') setSearched(true);
         }
+        if (result.hasMore !== null) setHasMore(result.hasMore);
         setState(result.state);
       })
       .catch((error: unknown) => {
@@ -76,10 +89,16 @@ export function useConversation(providerId: string | null): Conversation {
       .finally(() => {
         if (inFlight.current === controller) {
           inFlight.current = null;
-          setPending(false);
+          setBusy(false);
         }
       });
   }, []);
+
+  const loadMore = useCallback(() => {
+    const current = stateRef.current;
+    if (!current || current.screenIds.length === 0) return;
+    run((signal) => sendLoadMore(current, signal), 'load more', 'more');
+  }, [run]);
 
   const send = useCallback((message: string) => {
     const text = message.trim();
@@ -104,6 +123,8 @@ export function useConversation(providerId: string | null): Conversation {
     inFlight.current?.abort();
     inFlight.current = null;
     setPending(false);
+    setLoadingMore(false);
+    setHasMore(false);
     setItems([]);
     setCards([]);
     setSearched(false);
@@ -111,5 +132,5 @@ export function useConversation(providerId: string | null): Conversation {
     uiLogger.info('turn', 'started over: chat, cards and slip cleared');
   }, []);
 
-  return { items, cards, searched, pending, state, send, chooseBrand, reset };
+  return { items, cards, searched, pending, hasMore, loadingMore, state, send, chooseBrand, loadMore, reset };
 }

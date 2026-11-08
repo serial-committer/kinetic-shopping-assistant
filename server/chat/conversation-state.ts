@@ -14,14 +14,17 @@ import { EMPTY_SLIP, type Slip, SORT_ORDERS, type SortOrder } from '../slip/slip
 
 export const HISTORY_TURNS_KEPT = 6;
 const MAX_TEXT_CHARS = 1_000;
-const MAX_SCREEN_CARDS = 50;
+/* -- "Load more" adds 8 cards at a time; this many on screen is far beyond anyone scrolling -- */
+const MAX_SCREEN_CARDS = 200;
 
 export type PendingBrand = Readonly<{ name: string; asTyped: string; message: string; slip: Slip }>;
 
 export type ConversationState = Readonly<{
   slip: Slip;
-  /* -- The product id heading each card on screen, in card order -- */
+  /* -- The product id heading each card on screen, in card order, including cards added by "Load more" -- */
   screenIds: readonly string[];
+  /* -- The slip the cards on screen came from. Usually the saved slip; after a search-only turn, just the words -- */
+  screenSlip: Slip | null;
   excludedGroups: readonly string[];
   history: readonly HistoryTurn[];
   brandChoices: Readonly<Record<string, BrandChoice>>;
@@ -31,6 +34,7 @@ export type ConversationState = Readonly<{
 export const NEW_CONVERSATION: ConversationState = Object.freeze({
   slip: EMPTY_SLIP,
   screenIds: [],
+  screenSlip: null,
   excludedGroups: [],
   history: [],
   brandChoices: {},
@@ -48,6 +52,7 @@ export function readConversationState(raw: unknown, store: CatalogStore): Conver
   return {
     slip: readSlip(raw['slip']),
     screenIds: asArray(raw['screenIds']).filter((id): id is string => typeof id === 'string' && store.rowById.has(id)).slice(0, MAX_SCREEN_CARDS),
+    screenSlip: isRecord(raw['screenSlip']) ? readSlip(raw['screenSlip']) : null,
     excludedGroups: asArray(raw['excludedGroups']).filter((key): key is string => typeof key === 'string' && store.rowsByGroup.has(key)),
     history: asArray(raw['history']).flatMap(readTurn).slice(-HISTORY_TURNS_KEPT),
     brandChoices: Object.fromEntries(Object.entries(isRecord(raw['brandChoices']) ? raw['brandChoices'] : {}).filter(([name, choice]) => store.brandCounts.has(name) && (choice === 'brand' || choice === 'word'))) as Record<string, BrandChoice>,

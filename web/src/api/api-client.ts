@@ -36,6 +36,10 @@ export function sendBrandChoice(choice: BrandChoice, providerId: string | null, 
   return postJson<ChatTurnResult>('/api/brand-choice', { choice, providerId, state }, signal);
 }
 
+export function sendLoadMore(state: ConversationState, signal: AbortSignal): Promise<ChatTurnResult> {
+  return postJson<ChatTurnResult>('/api/more', { state }, signal);
+}
+
 export function fetchLogsAfter(afterId: number, signal: AbortSignal): Promise<{ entries: LogEntry[] }> {
   return fetch(`/api/debug/logs?after=${afterId}`, { signal }).then((response) => readJson<{ entries: LogEntry[] }>(response));
 }

@@ -132,6 +132,26 @@ test('answer: questions about the cards on screen answer from their records and 
   assert.match(provider.calls.at(-1)!.input, /asking about the products on screen/);
 });
 
+test('load more: the next cards come without repeats, and hasMore turns false at the end', async () => {
+  const shoes = Array.from({ length: 12 }, (_, index) => product({ id: `RUN${index}`, title: `Running Shoes Model ${index}`, store: `Store ${index}`, price: 40 + index }));
+  const provider = scriptedProvider({ slip: [search({ text: 'running shoes', maxPrice: 100 })], reply: [{ message: 'Twelve pairs.', productIds: [] }] });
+  const chat = createChatService(fakeEngine(shoes), registryOf(provider));
+  const first = await chat.handleMessage({ message: 'running shoes under $100', providerId: 'offline', state: NEW_CONVERSATION });
+  assert.equal(first.cards!.length, 8);
+  assert.equal(first.hasMore, true);
+
+  const callsBefore = provider.calls.length;
+  const more = await chat.handleLoadMore({ state: first.state });
+  assert.equal(provider.calls.length, callsBefore, 'load more never calls the chat model');
+  assert.equal(more.kind, 'more');
+  assert.equal(more.cards!.length, 4);
+  assert.equal(more.hasMore, false);
+  const firstIds = new Set(first.cards!.map((card) => card.id));
+  assert.ok(more.cards!.every((card) => !firstIds.has(card.id)), 'no card repeats');
+  assert.equal(more.state.screenIds.length, 12);
+  assert.deepEqual(more.state.history, first.state.history, 'load more adds nothing to the chat');
+});
+
 test('a size the rules cannot read searches as a word instead of vanishing', async () => {
   const provider = scriptedProvider({ slip: [search({ text: 'dress', size: 'petite' })], reply: [{ message: 'ok', productIds: [] }] });
   const chat = createChatService(fakeEngine(CATALOG, SHEETS), registryOf(provider));

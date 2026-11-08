@@ -35,6 +35,8 @@ export type RankingMode = 'words+meaning' | 'words' | 'rating';
 
 export type SearchResult = Readonly<{
   cards: readonly Card[];
+  /* -- True when at least one more card exists after this page: the page shows "Load more" only then -- */
+  hasMore: boolean;
   survivorCount: number;
   ranking: RankingMode;
   timingsMs: Readonly<{ filter: number; rank: number; total: number }>;
@@ -51,14 +53,17 @@ export async function runSearch(store: CatalogStore, embedQuery: QueryEmbedder |
   const { rankedRows, ranking } = text ? await rankByRelevance(store, embedQuery, text, survivors) : { rankedRows: rankByRating(survivors.rows, store.products), ranking: 'rating' as const };
   const rankMs = performance.now() - rankStarted;
 
-  const poolSize = request.sort ? (text ? SORT_POOL_CARDS : Infinity) : cardsPerPage();
+  /* -- One card more than a page is enough to know whether "Load more" has anything to load -- */
+  const poolSize = request.sort ? (text ? SORT_POOL_CARDS : Infinity) : cardsPerPage() + 1;
   const pool = mergeIntoCards(rankedRows, store, survivors.mask, poolSize);
   const ordered = request.sort ? sortCards(pool, store.products, request.sort) : pool;
   const cards = ordered.slice(0, cardsPerPage());
-  logger.debug('P11', 'cards', cards.map((card) => ({ title: shortTitle(store, card.bestRow), listings: card.passingRows.length, minPrice: card.minPrice, maxPrice: card.maxPrice, twins: card.hasTwins })));
+  const hasMore = ordered.length > cards.length;
+  logger.debug('P11', 'cards', { hasMore, cards: cards.map((card) => ({ id: store.products[card.bestRow]!.id, title: shortTitle(store, card.bestRow), listings: card.passingRows.length, minPrice: card.minPrice, maxPrice: card.maxPrice, twins: card.hasTwins })) });
 
   return {
     cards,
+    hasMore,
     survivorCount: survivors.rows.length,
     ranking,
     timingsMs: { filter: round(filterMs), rank: round(rankMs), total: round(performance.now() - started) },

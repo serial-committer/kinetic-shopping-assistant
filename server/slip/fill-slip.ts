@@ -12,7 +12,9 @@ import type { Slip } from './slip-types.ts';
 
 export async function fillSlip(provider: ChatProvider, slip: Slip, screen: readonly ScreenLine[], history: readonly HistoryTurn[], message: string, signal?: AbortSignal): Promise<SlipForm> {
   const input = buildSlipInput(slip, screen, history, message);
-  logger.debug('P6', 'slip request', { provider: provider.label, model: provider.model, input });
+  /* -- DEBUG keeps the request readable; the whole prompt input goes to TRACE -- */
+  logger.debug('P6', 'slip request', { provider: provider.label, model: provider.model, message, savedSlip: slip, cardsOnScreen: screen.length, historyTurns: history.length });
+  logger.trace('P6', 'slip request input', { input });
   const started = performance.now();
   const json = await provider.completeJson({ purpose: 'slip', instructions: SLIP_INSTRUCTIONS, input, schemaName: 'slip', schema: SLIP_FORM_SCHEMA, signal });
   const { form, problems } = readSlipForm(json);

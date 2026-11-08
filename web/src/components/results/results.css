@@ -9,6 +9,7 @@
   gap: 14px;
   min-height: 0;
   overflow-y: auto;
+  container-type: inline-size;
   /* -- Room at the bottom so the fixed Logs button never sits on the last line -- */
   padding: 4px 4px 64px;
 }
@@ -66,11 +67,34 @@
   font-size: 12.5px;
 }
 
+/* ---------------------------------------
+    Cards come 8 at a time, so the grid only uses column counts that divide 8: four across when the column is wide
+    enough, two otherwise. A full page always fills its rows (4 + 4, or 2 + 2 + 2 + 2), so a half-empty row means
+    the search really has no more, never that the layout ran out of room.
+--------------------------------------- */
 .results-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
+  max-width: 1280px;
   transition: opacity var(--duration-ui) ease;
+}
+
+@container (min-width: 820px) {
+  .results-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.load-more-row {
+  display: flex;
+  justify-content: center;
+  max-width: 1280px;
+  padding-top: 4px;
+}
+
+.load-more {
+  min-width: 160px;
 }
 
 .results-grid.is-pending {
@@ -203,7 +227,6 @@
 
 @media (max-width: 599px) {
   .results-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
 }

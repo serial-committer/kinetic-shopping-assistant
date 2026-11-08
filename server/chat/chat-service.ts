@@ -22,7 +22,7 @@ import { fillSlip } from '../slip/fill-slip.ts';
 import { keepShopperWords } from '../slip/keep-words.ts';
 import { mergeSlip } from '../slip/merge-slip.ts';
 import type { SlipChange, SlipForm } from '../slip/slip-form.ts';
-import type { Slip } from '../slip/slip-types.ts';
+import { EMPTY_SLIP, type Slip } from '../slip/slip-types.ts';
 import { toCardViews, type CardView } from './card-view.ts';
 import { ChatFailure, type ChatProvider } from './chat-provider.ts';
 import { brandButtonLabel, brandQuestionText, CHAT_FAILED_NOTE, CHAT_OFF_NOTE, FIXED_QUESTION, wordButtonLabel } from './chat-wording.ts';
@@ -32,7 +32,7 @@ import { SAFE_REPLY } from './reply-checks.ts';
 import { lowestPriceOnScreen, priceJustUnderScreen, rebuildScreenCards, screenLines } from './screen-cards.ts';
 import { writeReply } from './write-reply.ts';
 
-export type TurnKind = 'results' | 'question' | 'answer' | 'brand-question' | 'search-only';
+export type TurnKind = 'results' | 'question' | 'answer' | 'brand-question' | 'search-only' | 'more';
 
 export type BrandQuestion = Readonly<{ text: string; brand: { label: string; choice: 'brand' }; word: { label: string; choice: 'word' } }>;
 
@@ -40,8 +40,10 @@ export type ChatTurnResult = Readonly<{
   messageId: string;
   kind: TurnKind;
   reply: Readonly<{ text: string; highlightIds: string[] }>;
-  /* -- null means "leave the cards on screen as they are" -- */
+  /* -- null means "leave the cards on screen as they are". For kind "more", these are cards to ADD below the ones on screen -- */
   cards: CardView[] | null;
+  /* -- Whether "Load more" has more to load; null means "unchanged" (no new cards) -- */
+  hasMore: boolean | null;
   brandQuestion: BrandQuestion | null;
   notice: string | null;
   state: ConversationState;
@@ -51,7 +53,10 @@ export type ChatTurnResult = Readonly<{
 export type ChatService = Readonly<{
   handleMessage(request: { message: string; providerId: string | null; state: ConversationState; signal?: AbortSignal }): Promise<ChatTurnResult>;
   handleBrandChoice(request: { choice: BrandChoice; providerId: string | null; state: ConversationState; signal?: AbortSignal }): Promise<ChatTurnResult>;
+  handleLoadMore(request: { state: ConversationState }): Promise<ChatTurnResult>;
 }>;
+
+type FinishMeta = { action: string; ranking?: string; survivorCount?: number; hasMore?: boolean };
 
 type Turn = { messageId: string; started: number; provider: ChatProvider | null; signal?: AbortSignal };
 
@@ -64,8 +69,9 @@ export function createChatService(engine: SearchEngine, providers: ProviderRegis
   async function handleMessage({ message, providerId, state, signal }: { message: string; providerId: string | null; state: ConversationState; signal?: AbortSignal }): Promise<ChatTurnResult> {
     const turn: Turn = { messageId: newMessageId(), started: performance.now(), provider: pickProvider(providerId), signal };
     return logger.withMessageId(turn.messageId, async () => {
+      logger.info('turn', 'shopper message', { message, provider: turn.provider ? `${turn.provider.label} (${turn.provider.model})` : 'none', cardsOnScreen: state.screenIds.length });
       if (!turn.provider) return searchOnly(turn, message, state, CHAT_OFF_NOTE);
-      const screen = rebuildScreenCards(store, state.screenIds, state.slip, state.brandChoices);
+      const screen = rebuildScreenCards(store, state.screenIds, state.screenSlip ?? state.slip, state.brandChoices);
       let form: SlipForm;
       try {
         form = await fillSlip(turn.provider, state.slip, screenLines(store, screen), state.history, message, signal);
@@ -101,6 +107,28 @@ export function createChatService(engine: SearchEngine, providers: ProviderRegis
       const label = choice === 'brand' ? brandButtonLabel(pending.name, store.brandCounts.get(pending.name) ?? 0) : wordButtonLabel(pending.asTyped, store.otherTitleCounts.get(pending.name) ?? 0);
       const history = withTurns(state.history, { role: 'shopper', text: label });
       return searchAndReply(turn, pending.message, slip, choice === 'brand' ? pending.name : null, state.excludedGroups, { ...state, brandChoices, history, pendingBrand: null }, 'brand-choice');
+    });
+  }
+
+  /* ---------------------------------------
+      "Load more": the same search again (P8 to P11) with every card already on screen excluded, the way "cheaper"
+      excludes them, so the next 8 come back without any offset or page number to keep. No chat model is involved
+      and no message is added to the chat: the new cards go below the ones on screen.
+  --------------------------------------- */
+  async function handleLoadMore({ state }: { state: ConversationState }): Promise<ChatTurnResult> {
+    const turn: Turn = { messageId: newMessageId(), started: performance.now(), provider: null };
+    return logger.withMessageId(turn.messageId, async () => {
+      const slip = state.screenSlip ?? state.slip;
+      const decision = checkBrand(slip.brand, store, state.brandChoices);
+      const shownGroups = state.screenIds.flatMap((id) => {
+        const row = store.rowById.get(id);
+        return row === undefined ? [] : [store.products[row]!.groupKey];
+      });
+      const excluded = new Set([...state.excludedGroups, ...shownGroups]);
+      logger.info('turn', 'load more', { cardsOnScreen: state.screenIds.length, slip });
+      const result = await engine.search({ text: slip.text, sort: slip.sort, filters: filtersFromSlip(slip, decision.kind === 'filter' ? decision.name : null, excluded) });
+      const nextState: ConversationState = { ...state, screenIds: [...state.screenIds, ...result.cards.map((card) => store.products[card.bestRow]!.id)] };
+      return finish(turn, 'more', { text: '', highlightIds: [] }, toCardViews(store, result.cards), nextState, { action: 'load-more', ranking: result.ranking, survivorCount: result.survivorCount, hasMore: result.hasMore });
     });
   }
 
@@ -152,35 +180,38 @@ export function createChatService(engine: SearchEngine, providers: ProviderRegis
       slip,
       excludedGroups,
       screenIds: result.cards.map((card) => store.products[card.bestRow]!.id),
+      screenSlip: slip,
       history: withTurns(state.history, { role: 'assistant', text: reply.text }),
       pendingBrand: null,
     };
-    return finish(turn, 'results', reply, toCardViews(store, result.cards, reply.highlightIds), nextState, { action, ranking: result.ranking, survivorCount: result.survivorCount });
+    return finish(turn, 'results', reply, toCardViews(store, result.cards, reply.highlightIds), nextState, { action, ranking: result.ranking, survivorCount: result.survivorCount, hasMore: result.hasMore });
   }
 
-  /* -- No chat model for this message: the whole sentence becomes search words, filters stay off, the slip is untouched -- */
+  /* -- No chat model for this message: the whole sentence becomes search words, filters stay off, the saved slip is untouched -- */
   async function searchOnly(turn: Turn, message: string, state: ConversationState, notice: string): Promise<ChatTurnResult> {
     logger.warn('P6', 'search-only mode for this message', { reason: turn.provider ? 'the slip failed' : 'no chat provider is set up' });
     const result = await engine.search({ text: message, sort: null, filters: NO_FILTERS });
     const nextState: ConversationState = {
       ...state,
       screenIds: result.cards.map((card) => store.products[card.bestRow]!.id),
+      screenSlip: { ...EMPTY_SLIP, text: message },
       history: withTurns(state.history, { role: 'shopper', text: message }, { role: 'assistant', text: SAFE_REPLY }),
     };
-    return finish(turn, 'search-only', { text: SAFE_REPLY, highlightIds: [] }, toCardViews(store, result.cards), nextState, { action: 'search-only', ranking: result.ranking, survivorCount: result.survivorCount }, null, notice);
+    return finish(turn, 'search-only', { text: SAFE_REPLY, highlightIds: [] }, toCardViews(store, result.cards), nextState, { action: 'search-only', ranking: result.ranking, survivorCount: result.survivorCount, hasMore: result.hasMore }, null, notice);
   }
 
   function finish(
     turn: Turn, kind: TurnKind, reply: { text: string; highlightIds: string[] }, cards: CardView[] | null, state: ConversationState,
-    meta: { action: string; ranking?: string; survivorCount?: number }, brandQuestion: BrandQuestion | null = null, notice: string | null = null,
+    meta: FinishMeta, brandQuestion: BrandQuestion | null = null, notice: string | null = null,
   ): ChatTurnResult {
     const ms = Math.round(performance.now() - turn.started);
-    logger.info('turn', 'message handled', { provider: turn.provider?.label ?? 'none', action: meta.action, kind, cards: cards?.length ?? 'unchanged', ms });
+    logger.info('turn', 'message handled', { provider: turn.provider?.label ?? 'none', action: meta.action, kind, reply: reply.text, cardIds: cards?.map((card) => card.id) ?? 'unchanged', hasMore: meta.hasMore ?? 'unchanged', ms });
     return {
       messageId: turn.messageId,
       kind,
       reply,
       cards,
+      hasMore: meta.hasMore ?? null,
       brandQuestion,
       notice,
       state,
@@ -188,7 +219,7 @@ export function createChatService(engine: SearchEngine, providers: ProviderRegis
     };
   }
 
-  return Object.freeze({ handleMessage, handleBrandChoice });
+  return Object.freeze({ handleMessage, handleBrandChoice, handleLoadMore });
 }
 
 /* -- Cards excluded by "cheaper" only make sense while that price cap stands: a new search or a new price resets them -- */

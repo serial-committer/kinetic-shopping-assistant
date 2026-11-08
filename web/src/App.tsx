@@ -46,7 +46,17 @@ export function App() {
       <Header providers={settings.providers} providerId={providerId} onProviderChange={setProviderId} theme={theme.choice} onThemeNext={theme.next} />
       <main className="app-main">
         <ChatPanel items={conversation.items} pending={conversation.pending} onSend={conversation.send} onBrandChoice={conversation.chooseBrand} />
-        <ResultsPanel cards={conversation.cards} searched={conversation.searched} pending={conversation.pending} state={conversation.state} onOpenCard={onOpenCard} onStartOver={conversation.reset} />
+        <ResultsPanel
+          cards={conversation.cards}
+          searched={conversation.searched}
+          pending={conversation.pending}
+          hasMore={conversation.hasMore}
+          loadingMore={conversation.loadingMore}
+          state={conversation.state}
+          onOpenCard={onOpenCard}
+          onLoadMore={conversation.loadMore}
+          onStartOver={conversation.reset}
+        />
       </main>
       <CardSheet card={openCard?.card ?? null} anchor={openCard?.anchor ?? null} onClosed={onSheetClosed} />
       {settings.debugPanel && <DebugPanel />}

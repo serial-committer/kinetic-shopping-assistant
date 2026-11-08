@@ -43,9 +43,9 @@ OFF           -       -      -      -      -
 
 | Level | What is logged |
 |---|---|
-| TRACE | Per-record detail: the top 50 BM25 scores |
-| DEBUG | The slip before and after the merge, words put back, gate decisions, survivor counts, the top 10 of each ranker, RRF totals, chat requests and responses (no keys) |
-| INFO | One line per message: provider, action, cards, time. Start-up steps |
+| TRACE | Per-record detail: the top 50 BM25 scores, and the whole prompt input sent to the chat model |
+| DEBUG | The slip request (message, saved slip) and the slip the model filled, the slip before and after the merge, words put back, a new topic found by code, gate decisions, survivor counts, the top 10 of each ranker, RRF totals, the meaning floor, the cards (with product ids), the reply request (product ids) and the reply (no keys) |
+| INFO | The shopper's message, then one line when it is handled: provider, action, the reply, the card ids, time. "Load more" too. Start-up steps |
 | WARN | Every fallback: search-only, a schema problem, a dropped id, a price mismatch, an empty question |
 | ERROR | Provider failures, embedder crashes, a manifest mismatch |
 
@@ -61,6 +61,21 @@ click "Close", press Escape or click outside
                   page-log listener removed. Measured: 3 polls in 3 s while open, 0 in 4 s after closing.
 ```
 
+## Copying logs
+
+"Copy all" copies the entries at the levels shown, as plain lines, oldest message first; "Copy" on a message heading copies that message alone. Each line is time, level, source (when not the server), step, message, and the data as one line of JSON:
+
+```text
+## Message 12d3f8ba
+11:01:17.957 INFO  turn shopper message {"message":"Show me running shoes under $120","provider":"Offline (kinetic:thinker)","cardsOnScreen":0}
+11:01:24.486 DEBUG P6 slip response {"form":{"action":"search","question":null,"change":{"text":"running shoes","maxPrice":120,...}}}
+11:01:24.486 DEBUG P7c brand gate {"kind":"none"}
+11:01:24.534 DEBUG [embedder] P9 shopper text embedded {"tookMs":37}
+11:01:24.580 DEBUG P11 cards {"hasMore":true,"cards":[{"id":"B0B4VDQTNM","title":"LALO Men's Running Cross-Trainer-Shoes",...}]}
+```
+
+The product ids lead to the full records in `data/products.json`, so a log stays short without losing which products it was about.
+
 ## Where to change things
 
 | To change | Edit |
@@ -70,4 +85,5 @@ click "Close", press Escape or click outside
 | The endpoint | `server/http/routes.ts` |
 | The window, grouping, polling interval | `web/src/components/debug/DebugPanel.tsx` |
 | One entry's look | `web/src/components/debug/LogGroup.tsx` |
+| The copied text format | `web/src/components/debug/format-log.ts` |
 | The page's own logger | `web/src/logging/ui-logger.ts` |

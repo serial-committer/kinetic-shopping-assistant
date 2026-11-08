@@ -69,6 +69,17 @@ Heated gloves *            no                0.768           shown (over 0.62)
 
 0.62 sits between the scores measured on the first 7 searches (real matches 0.64 to 0.80, unrelated 0.42 to 0.60). `npm run floor-check` re-measures it on 31 searches; `-- --floor=0.6` tries another value.
 
+## Load more
+
+The search fetches one card beyond the page; if it exists, the page shows "Load more". A click runs the same search again with every card on screen excluded (the same mechanism as "cheaper"), so the next 8 come back with no offset or page number to keep, and no chat model call.
+
+```text
+Fig E: two pages of "running shoes under $120"
+page 1   search                         -> cards 1 to 8, hasMore = true (a 9th exists)
+page 2   search, excluding cards 1 to 8 -> cards 9 to 16, added below, hasMore = true
+...      until a page has no 9th card   -> the button goes away
+```
+
 ## Orders that aren't relevance
 
 | Case | Order |
@@ -93,7 +104,8 @@ Heated gloves *            no                0.768           shown (over 0.62)
 | BM25 settings (k1 1.2, b 0.75) | `server/catalog/bm25.ts` |
 | RRF constant (60) | `server/search/combine-rrf.ts` |
 | The meaning floor (0.62) | `MEANING_FLOOR` in `server/search/meaning-floor.ts` |
-| Cards per answer (8), paging | `cardsPerPage()` in `server/search/merge-cards.ts` |
+| Cards per page (8) | `cardsPerPage()` in `server/search/merge-cards.ts` |
+| Load more | `handleLoadMore` in `server/chat/chat-service.ts`, `POST /api/more` in `server/http/routes.ts` |
 | The sort pool (40) | `server/search/search-pipeline.ts` |
 | Rating order, sorts | `server/search/order-results.ts` |
 

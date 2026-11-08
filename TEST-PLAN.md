@@ -10,7 +10,7 @@ Every test case for the project, grouped by feature. Add new cases at the end of
 
 **Your result** is yours to fill in.
 
-Last full run: 2026-11-08, `npm test` 58 of 58, `npm run typecheck` clean.
+Last full run: 2026-11-08, `npm test` 60 of 60, `npm run typecheck` clean.
 
 ---
 
@@ -27,7 +27,7 @@ Last full run: 2026-11-08, `npm test` 58 of 58, `npm run typecheck` clean.
 | A7 | A fresh `git clone` gives byte-identical files with no CRLF (hashes in `vendor/*/SOURCE.md` still match) | PASS (manual: 247 of 247 files identical) | |
 | A8 | `.gitignore` hides `catalog/products.json`, `Individual Catalog/`, `node_modules`, `.env`, `Build Notes/`, `web/dist`, and keeps `vendor/onnxruntime/node_modules`, `.env.example`, `data/` | PASS (manual: throwaway repo + `git check-ignore`) | |
 | A9 | `npm run typecheck` shows zero errors and zero warnings | PASS (tool) | |
-| A10 | `npm test` passes in full | PASS (tool: 58 of 58) | |
+| A10 | `npm test` passes in full | PASS (tool: 60 of 60) | |
 
 ## B. Settings and logging
 
@@ -44,6 +44,8 @@ Last full run: 2026-11-08, `npm test` 58 of 58, `npm run typecheck` clean.
 | B9 | Every log line made while handling a chat message carries that message's id | PASS (API: `/api/debug/logs` entries grouped under 3 message ids) | |
 | B10 | Embedder log lines arrive tagged `[embedder]` | PASS (manual: build output) | |
 | B11 | API keys come from `.env` only: a key in the machine's environment is ignored | PASS (unit; API: an `OPENAI_API_KEY` in the Windows user environment no longer shows OpenAI) | |
+| B12 | At DEBUG, one message reads in order: shopper's words, slip filled, merge, gate, rankers, cards with product ids, reply. Full prompts only at TRACE | PASS (browser: copied log of two messages, 39 lines) | |
+| B13 | "Copy all" copies plain lines grouped by message, oldest first, data as one line of JSON; "Copy" on a message copies that message | PASS (unit for the format; browser for the button) | |
 
 ## C. Cleaning tool (Point 1)
 
@@ -105,7 +107,8 @@ Last full run: 2026-11-08, `npm test` 58 of 58, `npm run typecheck` clean.
 | F9 | Rare words outweigh common ones ("merrell" over "shoes") | PASS (unit) | |
 | F10 | Empty search text ("anything under $20") sorts by rating, then rating count | PASS (unit + tool) | |
 | F11 | A sort (price low, price high, rating) overrides relevance, among the 40 most relevant cards | PASS (unit + tool) | |
-| F12 | Repeats fold into one card; groups are ordered by their best listing; at most 8 cards | PASS (unit) | |
+| F12 | Repeats fold into one card; groups are ordered by their best listing; 8 cards per page | PASS (unit) | |
+| F24 | "Load more" appears only when more cards exist; it adds the next 8 with no repeats, no chat message and no chat model call; it disappears at the end | PASS (unit; browser: 8 then 16, first 8 unchanged, no duplicates) | |
 | F13 | A card's headline shows only listings that passed, as a price or a range with a listing count, never an average | PASS (unit) | |
 | F14 | Twins (same color and size, different price) get "Listed more than once at different prices." | PASS (unit) | |
 | F15 | Hand-made slip for "running shoes under $120" returns running shoes, all at or under $120 | PASS (tool) | |
@@ -176,6 +179,9 @@ Last full run: 2026-11-08, `npm test` 58 of 58, `npm run typecheck` clean.
 | I9 | "New search" clears the chat, the cards and the saved slip | PASS (browser, after a stale-module reload) | |
 | I10 | Two columns from 900 px wide, one column below | PASS (browser: 800 px and 1360 px) | |
 | I11 | Reduced motion keeps fades and drops movement | Not run (by code: `prefers-reduced-motion` blocks in CSS and the grow animation) | |
+| I13 | The grid uses 4 columns, or 2 when narrow, so 8 cards always fill their rows | PASS (browser: 2 columns at 554 px, 4 at 971 px) | |
+| I14 | The tab icon is the dark cart on a light browser theme and the light cart on a dark one | PASS (headless Chrome 156 fetches only `favicon.svg`; the SVG drawn in both schemes; the build emits all icon links). The tab strip itself not seen | |
+| I15 | The header logo matches the theme (sky blue bags in light, amber in dark, sparkle cut out) and the title is uppercase | PASS (browser, both themes, 28 px and large) | |
 | I12 | A phone-width layout (about 390 px) | Not run | |
 
 ## J. End to end (brief's examples)

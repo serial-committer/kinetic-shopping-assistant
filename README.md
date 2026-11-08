@@ -194,7 +194,8 @@ The chat model's whole reply must be a fixed form: `action` (search, ask or answ
 - **Two rankers.** Words (BM25, k1 1.2, b 0.75): rare words count more, so "merrell" outweighs "shoes". Meaning (bge-small vectors): a dot product with every survivor. Words alone found 10 of 10 Merrell and Nike in testing but 1 of 10 for "keep my hands warm on the slopes", where meaning found 10.
 - **RRF** combines them by position only (1/(60 + place) from each list), so a BM25 score and a cosine never have to be compared.
 - **The meaning floor.** The meaning ranker scores every product that passed the filters, so without a limit, unrelated products would fill the free card slots when only a few really match. A product that matches none of the search words must reach a meaning score of 0.62 to stay; a product that matches any search word always stays. 0.62 sits between the measured scores of real matches (0.64 to 0.80) and unrelated products (0.42 to 0.60). `npm run floor-check` re-measures it on 31 searches: it removed 18 cards from 5 of them, all unrelated (a bag and a sock from "orange running shorts", a T-shirt from "Calvin Klein boxers"), and nothing that fit the request.
-- **Cards** fold listings by store + exact title. No fuzzy matching ever: a wrongly merged record is a product that doesn't exist. Up to 8 cards; the page size is one constant in one function (`cardsPerPage()`), ready for paging.
+- **Cards** fold listings by store + exact title. No fuzzy matching ever: a wrongly merged record is a product that doesn't exist. 8 cards per page; the page size is one constant in one function (`cardsPerPage()`).
+- **Load more** shows only when the search has more than the cards on screen (the search fetches one card beyond the page to know). It runs the same search again with every card on screen excluded, the same way "cheaper" excludes them, so there is no offset or page number to keep, and no chat model call. Re-running costs little: filtering all 39,834 listings takes a few milliseconds.
 - **Sorting** reorders the 40 most relevant cards, so "cheapest running shoes" stays about running shoes.
 
 ### The reply (Point 12)
@@ -229,11 +230,11 @@ OpenAI and Offline share one adapter: same SDK and call, different base URL and 
 
 ### Logging and the debug panel
 
-One logger, the only file that calls `console`; it wraps console instead of replacing it, so library logs stay untouched. Levels follow log4j (`TRACE < DEBUG < INFO < WARN < ERROR`, plus `OFF`). Every entry carries the time, level, pipeline step, chat message id and data, with keys masked. With `DEBUG_PANEL=true`, the last 500 entries are kept for the panel, `/api/debug/logs` exists, and the page shows a "Logs" button. The window polls about once a second while open and stops when it closes.
+One logger, the only file that calls `console`; it wraps console instead of replacing it, so library logs stay untouched. Levels follow log4j (`TRACE < DEBUG < INFO < WARN < ERROR`, plus `OFF`). Every entry carries the time, level, pipeline step, chat message id and data, with keys masked. Each message's story reads in order at DEBUG: the shopper's words, the slip the model filled, the merge, the gate, the rankers, the cards (with product ids, the records are in `data/products.json`) and the reply. The full prompts sent to the model go to TRACE only. With `DEBUG_PANEL=true`, the last 500 entries are kept for the panel, `/api/debug/logs` exists, and the page shows a "Logs" button. The window polls about once a second while open and stops when it closes. "Copy all" (and "Copy" on each message) copies plain lines, oldest message first, ready to paste into a chat or an issue.
 
 ### The web page
 
-Frosted glass (a web approximation using `backdrop-filter`, not Apple's own Liquid Glass), light (#F9F9F9, sky blue #0095EC) and dark (#010000, amber #EC9500) themes that follow the system or a manual switch, and popups that grow from what opened them. The product sheet grows out of its card; the logs window grows out of its button. A slip summary under "N products" shows what the search used, and "New search" starts over. Reduced motion keeps fades and drops movement.
+Frosted glass (a web approximation using `backdrop-filter`, not Apple's own Liquid Glass), light (#F9F9F9, sky blue #0095EC) and dark (#010000, amber #EC9500) themes that follow the system or a manual switch, and popups that grow from what opened them. The product sheet grows out of its card; the logs window grows out of its button. A slip summary under "N products" shows what the search used, and "New search" starts over. The grid uses 4 columns, or 2 when narrow, so a page of 8 always fills its rows: a half-empty row means the search really has no more. The header logo has one version per theme (`web/assets/`): two bags with a sparkle cut out, in the theme's accent color. The tab icon (`web/assets/favicon/favicon.svg`) is a cart that turns dark or light with the browser's own theme; browsers without SVG tab icons get a 32 px PNG per theme. Reduced motion keeps fades and drops movement.
 
 ---
 
@@ -244,6 +245,7 @@ Frosted glass (a web approximation using `backdrop-filter`, not Apple's own Liqu
 | `GET /api/config` | Providers set up (id, label, model; never a key), whether the debug panel is on, whether meaning search is running |
 | `POST /api/chat` | `{ message, providerId, state }` -> the reply, the cards (or `null` to leave them), a brand question if any, a note if any, and the new `state` |
 | `POST /api/brand-choice` | `{ choice: "brand" \| "word", providerId, state }` -> same shape |
+| `POST /api/more` | `{ state }` -> the next cards for the search on screen (kind `more`: add them below), `hasMore`, and the new `state`. No chat model |
 | `GET /api/debug/logs?after=N` | Log entries newer than N. Only exists with `DEBUG_PANEL=true` |
 
 ---
@@ -292,7 +294,7 @@ Today the whole catalog is loaded into memory at start. Updates would work like 
   - It sometimes adds the stock sentence when nobody asked, and sometimes adds a gender from the titles on screen ("Men's").
   - Claude and OpenAI probably do better, but that is untested.
 - **Batch-sensitive vectors:** the quantized model scales numbers per batch, so the same product embedded with different neighbours differs very slightly (cosine about 0.998).
-- **No paging:** up to 8 cards per answer.
+- **Load more with a sort:** the next page comes from the 40 most relevant cards not yet shown, re-sorted, so it is "the next cheapest of what's relevant", not a strict continuation of one sorted list.
 - **Invented words can't be removed:** the word-keeper only puts words back. Temperature 0 is the defence.
 
 ---
@@ -302,7 +304,6 @@ Today the whole catalog is loaded into memory at start. Updates would work like 
 - **Tuning for accuracy** is left for later, on purpose: the meaning floor (0.62), the RRF constant (60), the sort pool (40) and the color and size word lists are each one constant or one list in one file, with `npm run floor-check`, `npm run search-check` and `npm run slip-test` to measure a change. A larger set of judged searches would make those numbers firmer.
 - **The new-topic check could compare meaning** (the shopper vectors are already there) instead of words, so synonyms stop counting as a new topic.
 - **Claude and OpenAI are untested:** the adapters are built, but there were no keys. Run `npm run slip-test -- --provider=claude` once a key is in `.env`.
-- **Paging** isn't built; `cardsPerPage()` is the one place to start.
 - **Serving the built page from the API server** isn't built; use `npm run dev`.
 - Time spent: *(to be filled in)*
 

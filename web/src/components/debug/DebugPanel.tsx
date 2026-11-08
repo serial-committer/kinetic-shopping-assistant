@@ -10,6 +10,7 @@ import { fetchLogsAfter, isAbort } from '../../api/api-client.ts';
 import type { LogEntry, LogLevel } from '../../api/api-types.ts';
 import { uiLogger } from '../../logging/ui-logger.ts';
 import { useAnchoredDialog } from '../../motion/use-anchored-dialog.ts';
+import { formatGroups } from './format-log.ts';
 import { LogGroup } from './LogGroup.tsx';
 import '../sheet/sheet.css';
 import './debug.css';
@@ -103,7 +104,8 @@ function DebugContent({ onClose }: Readonly<{ onClose: () => void }>) {
     });
   };
 
-  const copyAll = () => void navigator.clipboard.writeText(JSON.stringify(groups.flatMap(([, entries]) => entries), null, 2));
+  /* -- Plain lines grouped by message, oldest message first so a pasted log reads in order; shown levels only -- */
+  const copyAll = () => void navigator.clipboard.writeText(formatGroups([...groups].reverse()));
 
   return (
     <div className="debug-content">
