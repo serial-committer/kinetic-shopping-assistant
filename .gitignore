@@ -34,3 +34,6 @@ Individual Catalog/
 
 # learning notes for each build round, not part of the product
 Build Notes/
+
+# Handoff file for the Agent to ramp up in the session
+HANDOFF.md
