@@ -17,6 +17,7 @@ import { checkBrand } from '../server/slip/brand-gate.ts';
 import { fillSlip } from '../server/slip/fill-slip.ts';
 import { keepShopperWords } from '../server/slip/keep-words.ts';
 import { mergeSlip } from '../server/slip/merge-slip.ts';
+import { moveNamedBrand } from '../server/slip/named-brand.ts';
 import type { SlipChange, SlipForm } from '../server/slip/slip-form.ts';
 import type { ScreenLine } from '../server/slip/slip-prompt.ts';
 import { EMPTY_SLIP, SLIP_BOXES, type Slip } from '../server/slip/slip-types.ts';
@@ -90,7 +91,8 @@ async function runFirstMessages(chat: ChatProvider): Promise<void> {
       printLine(`${message} | ${form.action.toUpperCase()} "${form.question ?? ''}"`);
       continue;
     }
-    const { slip, putBack } = keepShopperWords(message, mergeSlip(EMPTY_SLIP, form.change, 0).slip);
+    const moved = moveNamedBrand(mergeSlip(EMPTY_SLIP, form.change, 0, message).slip, form.change, message, brandSheets);
+    const { slip, putBack } = keepShopperWords(message, moved.slip);
     const decision = checkBrand(slip.brand, brandSheets);
     const gate = decision.kind === 'none' ? 'no brand' : decision.kind === 'words' ? `back to words "${decision.word}"` : decision.kind === 'ask' ? `ask first "${decision.name}" ${decision.own}/${decision.elsewhere}` : `filter "${decision.name}"`;
     const boxes = SLIP_BOXES.filter((box) => box !== 'text' && box !== 'brand' && slip[box] !== null).map((box) => `${box} ${slip[box]}`);
@@ -104,7 +106,7 @@ async function runFollowUps(chat: ChatProvider): Promise<void> {
   let right = 0;
   for (const { message, expect } of FOLLOW_UPS) {
     const form = await timedFill(chat, FOLLOW_UP_SLIP, SCREEN, message);
-    const merged = form.change ? mergeSlip(FOLLOW_UP_SLIP, form.change, SCREEN.length).slip : FOLLOW_UP_SLIP;
+    const merged = form.change ? moveNamedBrand(mergeSlip(FOLLOW_UP_SLIP, form.change, SCREEN.length, message).slip, form.change, message, brandSheets).slip : FOLLOW_UP_SLIP;
     const slip = form.action === 'search' ? keepShopperWords(message, merged).slip : merged;
     const misses = grade(form, slip, expect);
     if (misses.length === 0) right += 1;

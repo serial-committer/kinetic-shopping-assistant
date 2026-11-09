@@ -18,7 +18,7 @@ body {
 }
 
 body {
-  font-family: var(--font-ui);
+    font-family: var(--font-ui), system-ui;
   font-size: 14.5px;
   line-height: 1.45;
   color: var(--text);
@@ -59,6 +59,8 @@ button {
 .app {
   position: relative;
   display: grid;
+  /* -- minmax(0, 1fr): a long line inside can't widen the page past a phone screen -- */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto 1fr;
   height: 100dvh;
 }
@@ -78,7 +80,7 @@ button {
   }
 
   .app-main {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     padding: 12px;
     gap: 12px;
   }

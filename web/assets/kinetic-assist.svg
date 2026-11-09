@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 1024 1024">
-  <!-- Kinetic Assist logo, light theme. Two shopping bags and a sparkle; the gap between the bags and the sparkle are cut out, so the background shows through. -->
+  <!-- Kinetic Assist logo, light theme. Two shopping bags and the Kinetic bolt; the gap between the bags and the bolt are cut out, so the background shows through. -->
   <defs>
     <path id="front-handle" fill-rule="evenodd" d="M834.3 488.3H448.8l3-22.6c6-45.7 28.4-87.7 63.1-118.3 35-30.9 80-47.9 126.7-47.9s91.7 17 126.7 47.9C803 378 825.4 420 831.4 465.7l2.9 22.6z m-338.1-40h290.7c-18.6-63.4-77.5-108.8-145.3-108.8-67.9 0-126.8 45.4-145.4 108.8z"/>
     <path id="front-handle-outline" d="M834.3 488.3H448.8l3-22.6c6-45.7 28.4-87.7 63.1-118.3 35-30.9 80-47.9 126.7-47.9s91.7 17 126.7 47.9C803 378 825.4 420 831.4 465.7l2.9 22.6z"/>
@@ -19,16 +19,17 @@
         <use href="#front-body"/>
       </g>
     </mask>
-    <mask id="sparkle" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+    <!-- The Kinetic bolt (Kinetic Journal's 128-grid points), scaled 3.5x and centered on the front bag -->
+    <mask id="bolt" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
       <rect width="1024" height="1024" fill="#fff"/>
-      <path fill="#000" d="M641 560C656 672 684 700 796 715C684 730 656 758 641 870C626 758 598 730 486 715C598 700 626 672 641 560Z"/>
+      <polygon fill="#000" transform="translate(415.75 472.125) scale(3.5)" points="59.5,22 88,22.5 71,53 94.5,53.5 47,110.5 52,68.5 34.5,69.5"/>
     </mask>
   </defs>
   <g mask="url(#gap)">
     <path fill="#0A73BD" fill-rule="evenodd" d="M545.7 254.4H160.2l3-22.6c6-45.7 28.4-87.7 63.1-118.3 35-30.9 80-47.9 126.7-47.9s91.7 17 126.7 47.9c34.7 30.6 57.1 72.6 63.1 118.3l2.9 22.6z m-338.1-40h290.7C479.8 151 420.9 105.5 353 105.5S226.2 151 207.6 214.4z"/>
     <path fill="url(#back-fill)" d="M641 960.2H136.7c-39.6 0-71.8-32.1-71.8-71.8v-674H641v745.8z"/>
   </g>
-  <g mask="url(#sparkle)">
+  <g mask="url(#bolt)">
     <use href="#front-handle" fill="#0095EC"/>
     <use href="#front-body" fill="url(#front-fill)"/>
   </g>

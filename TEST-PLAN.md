@@ -10,7 +10,7 @@ Every test case for the project, grouped by feature. Add new cases at the end of
 
 **Your result** is yours to fill in.
 
-Last full run: 2026-11-08, `npm test` 60 of 60, `npm run typecheck` clean.
+Last full run: 2026-11-08, `npm test` 71 of 71, `npm run typecheck` clean.
 
 ---
 
@@ -46,6 +46,9 @@ Last full run: 2026-11-08, `npm test` 60 of 60, `npm run typecheck` clean.
 | B11 | API keys come from `.env` only: a key in the machine's environment is ignored | PASS (unit; API: an `OPENAI_API_KEY` in the Windows user environment no longer shows OpenAI) | |
 | B12 | At DEBUG, one message reads in order: shopper's words, slip filled, merge, gate, rankers, cards with product ids, reply. Full prompts only at TRACE | PASS (browser: copied log of two messages, 39 lines) | |
 | B13 | "Copy all" copies plain lines grouped by message, oldest first, data as one line of JSON; "Copy" on a message copies that message | PASS (unit for the format; browser for the button) | |
+| B14 | Export: a line can leave out time, level, source or step; data indented or on one line; levels, message headings and Load more messages can be left out; each kind of log line can be left out or keep only some data fields (a card without twins); the file header lists what was left out | PASS (unit; browser: choices applied to the preview, cards without twins and listings) | |
+| B15 | Export: Copy and "Download .log" give the same text as the preview; the file is named like `November_8_19_07.log`; choices are remembered | PASS (browser: download link built inside the window, 19,442 bytes, choices kept after reopening) | |
+| B16 | Export: closing it (Close, Escape, backdrop) leaves the logs window open | PASS (browser: the cancel event Escape fires closes only Export). A real Escape key not sent: the pane was hidden | |
 
 ## C. Cleaning tool (Point 1)
 
@@ -109,6 +112,7 @@ Last full run: 2026-11-08, `npm test` 60 of 60, `npm run typecheck` clean.
 | F11 | A sort (price low, price high, rating) overrides relevance, among the 40 most relevant cards | PASS (unit + tool) | |
 | F12 | Repeats fold into one card; groups are ordered by their best listing; 8 cards per page | PASS (unit) | |
 | F24 | "Load more" appears only when more cards exist; it adds the next 8 with no repeats, no chat message and no chat model call; it disappears at the end | PASS (unit; browser: 8 then 16, first 8 unchanged, no duplicates) | |
+| F25 | "Load more" stops at 200 cards with a note instead of repeating the same 8 (Kapil's 2026-11-08 log showed the same page three times) | PASS (unit: 192 + 8, then nothing more, note shown) | |
 | F13 | A card's headline shows only listings that passed, as a price or a range with a listing count, never an average | PASS (unit) | |
 | F14 | Twins (same color and size, different price) get "Listed more than once at different prices." | PASS (unit) | |
 | F15 | Hand-made slip for "running shoes under $120" returns running shoes, all at or under $120 | PASS (tool) | |
@@ -129,6 +133,7 @@ Last full run: 2026-11-08, `npm test` 60 of 60, `npm run typecheck` clean.
 | G2 | Merge: `newSearch` starts from an empty slip, `clear` empties the named boxes | PASS (unit) | |
 | G3 | Merge: a null or empty-string value keeps the box | PASS (unit) | |
 | G4 | Merge: "cheaper" ignores the model's prices only when products are on screen | PASS (unit) | |
+| G4b | "Cheaper" counts only with cards on screen, on the same search, with no price the shopper typed, and a price word in the message ("Under Armour shoes under $120" once became a $12.17 cap) | PASS (unit; API: a first-message "cheaper" logged as set aside) | |
 | G5 | Merge: a unisex gender from the model means no gender filter | PASS (unit) | |
 | G6 | "Anything cheaper?" keeps color and size, sets the price just under the cheapest on screen and excludes the shown cards | PASS (unit + API) | |
 | G7 | "Only show blue ones" keeps every other box | PASS (unit + API) | |
@@ -144,7 +149,10 @@ Last full run: 2026-11-08, `npm test` 60 of 60, `npm run typecheck` clean.
 | G17 | No provider set up: search-only mode with the fixed note, filters off | PASS (unit) | |
 | G18 | A new message aborts the old request | Not run as a test (page aborts its fetch; the server aborts the provider call when the connection closes) | |
 | G19 | A size the rules can't read (for example "petite") searches as a word instead of filtering everything out | PASS (unit) | |
-| G20 | The model never fills a box the shopper didn't ask for | Seen once (API): on "Anything cheaper?" the local model added gender "men" from the titles on screen. Known limit | |
+| G20 | The model never fills a box the shopper didn't ask for | Seen several times on Offline: gender "men" on "Anything cheaper?"; in Kapil's log a sort "price_low" and gender "men" nobody asked for, and "Nike" left in the words instead of the brand box. Sort and brand now checked by code (G25, G26); an invented gender is still a known limit | |
+| G24 | An "ask" that names an item in its form searches instead (the local model asked the shopper's own question back); an ask without one still asks | PASS (unit) | |
+| G25 | A sort counts only when the message has a word for that order ("Under Armour shoes under $120" got a price sort nobody asked for); a dropped sort leaves the saved one | PASS (unit) | |
+| G26 | "Only the Nike shoes" with Nike left in the words: Nike moves to the brand box. Not after "not" or "other than", not with two brands, not for Puma, Guess, Polo or numbers, not for words the model left out ("keen"); a brand button clicked earlier wins | PASS (unit, real counts from `data/brands.json`) | |
 | G21 | The nullable boxes use `anyOf` with null (accepted by Claude, OpenAI and Ollama) without lowering the Offline baseline | PASS (tool: same scores as the tested schema) | |
 | G22 | New topic by code: new search words sharing nothing with the saved ones start a new search; shared words, no new words, or only the brand named keep refining | PASS (unit; API: Polo after running shoes drops the $120 limit, sandals after Polo drop the brand) | |
 | G23 | The new-topic check doesn't break follow-ups | PASS (tool: slip-test follow-ups still 11 of 13, same two misses) | |
@@ -172,6 +180,8 @@ Last full run: 2026-11-08, `npm test` 60 of 60, `npm run typecheck` clean.
 | I2 | Up to 8 cards with image, title, brand, price or range, listing count, passing color and size, rating with count | PASS (browser) | |
 | I3 | The card details sheet grows from the card: every listing, "Other listings", twin warning, features, description | PASS (browser: grows from the card, closes with Escape). Twin warning not seen on screen yet | |
 | I4 | Light (#F9F9F9, sky blue) and dark (#010000, amber) modes switch smoothly | PASS (browser: Auto, Light, Dark; scrollbars follow the theme) | |
+| I16 | The theme button shows an icon with its name (half circle Auto, sun Light, moon Dark), keeps one width, and says what it does on hover | PASS (headless Chrome: all three icons in both themes, 88 px each time, tooltip "Theme: follows your system. Click for Light."; icon only, 36 px round, at 375 px) | |
+| I17 | Before the first search, the products note fills the column width instead of wrapping early | PASS (headless Chrome at 1280 px: one line; it wraps only on a phone) | |
 | I5 | Debug button only with `DEBUG_PANEL=true`; the modal grows from it; level chips, collapsible JSON, copy button | PASS (browser) | |
 | I6 | `/api/debug/logs` doesn't exist when the panel is off; polling stops when the modal closes | Polling: PASS (browser: 3 polls in 3 s open, 0 in 4 s after closing). Route absent when off: by code, not run | |
 | I7 | No API key ever reaches the browser (`/api/config` and every response) | PASS (API: id, label and model only; keys never enter the conversation state) | |
@@ -181,8 +191,8 @@ Last full run: 2026-11-08, `npm test` 60 of 60, `npm run typecheck` clean.
 | I11 | Reduced motion keeps fades and drops movement | Not run (by code: `prefers-reduced-motion` blocks in CSS and the grow animation) | |
 | I13 | The grid uses 4 columns, or 2 when narrow, so 8 cards always fill their rows | PASS (browser: 2 columns at 554 px, 4 at 971 px) | |
 | I14 | The tab icon is the dark cart on a light browser theme and the light cart on a dark one | PASS (headless Chrome 156 fetches only `favicon.svg`; the SVG drawn in both schemes; the build emits all icon links). The tab strip itself not seen | |
-| I15 | The header logo matches the theme (sky blue bags in light, amber in dark, sparkle cut out) and the title is uppercase | PASS (browser, both themes, 28 px and large) | |
-| I12 | A phone-width layout (about 390 px) | Not run | |
+| I15 | The header logo matches the theme (sky blue bags in light, amber in dark, Kinetic bolt cut out) and the title is uppercase | PASS (browser, both themes, 28 px and large) | |
+| I12 | A phone-width layout (about 390 px) | PASS after a fix (browser at 375 px: the page was 545 px wide; the page grid now uses `minmax(0, 1fr)`; logs and Export windows fit). The title shortens to "KINETIC SH..." beside the model dropdown (the theme button is icon only there) | |
 
 ## J. End to end (brief's examples)
 

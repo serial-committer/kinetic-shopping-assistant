@@ -32,6 +32,11 @@ export function useTheme(): { choice: ThemeChoice; next: () => void } {
     }
   }, [choice]);
 
-  const next = useCallback(() => setChoice((current) => ORDER[(ORDER.indexOf(current) + 1) % ORDER.length]!), []);
+  const next = useCallback(() => setChoice(nextThemeChoice), []);
   return { choice, next };
+}
+
+/* -- Auto, then Light, then Dark, then back to Auto -- */
+export function nextThemeChoice(current: ThemeChoice): ThemeChoice {
+  return ORDER[(ORDER.indexOf(current) + 1) % ORDER.length]!;
 }

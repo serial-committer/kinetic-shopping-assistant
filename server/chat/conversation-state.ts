@@ -14,8 +14,8 @@ import { EMPTY_SLIP, type Slip, SORT_ORDERS, type SortOrder } from '../slip/slip
 
 export const HISTORY_TURNS_KEPT = 6;
 const MAX_TEXT_CHARS = 1_000;
-/* -- "Load more" adds 8 cards at a time; this many on screen is far beyond anyone scrolling -- */
-const MAX_SCREEN_CARDS = 200;
+/* -- "Load more" adds 8 cards at a time and stops here: far beyond anyone scrolling, and a multiple of 8 -- */
+export const MAX_SCREEN_CARDS = 200;
 
 export type PendingBrand = Readonly<{ name: string; asTyped: string; message: string; slip: Slip }>;
 

@@ -78,6 +78,7 @@ Fig E: two pages of "running shoes under $120"
 page 1   search                         -> cards 1 to 8, hasMore = true (a 9th exists)
 page 2   search, excluding cards 1 to 8 -> cards 9 to 16, added below, hasMore = true
 ...      until a page has no 9th card   -> the button goes away
+page 25  the screen holds 200 cards       -> the button goes away and a note asks to narrow the search
 ```
 
 ## Orders that aren't relevance

@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ChatFailure } from '../server/chat/chat-provider.ts';
 import { createChatService } from '../server/chat/chat-service.ts';
-import { CHAT_FAILED_NOTE, CHAT_OFF_NOTE, FIXED_QUESTION } from '../server/chat/chat-wording.ts';
+import { CHAT_FAILED_NOTE, CHAT_OFF_NOTE, FIXED_QUESTION, SCREEN_FULL_NOTE } from '../server/chat/chat-wording.ts';
 import { NEW_CONVERSATION } from '../server/chat/conversation-state.ts';
 import { SAFE_REPLY } from '../server/chat/reply-checks.ts';
 import type { SlipChange } from '../server/slip/slip-form.ts';
@@ -150,6 +150,39 @@ test('load more: the next cards come without repeats, and hasMore turns false at
   assert.ok(more.cards!.every((card) => !firstIds.has(card.id)), 'no card repeats');
   assert.equal(more.state.screenIds.length, 12);
   assert.deepEqual(more.state.history, first.state.history, 'load more adds nothing to the chat');
+});
+
+test('load more stops at 200 cards with a note, instead of repeating the same page', async () => {
+  const shoes = Array.from({ length: 210 }, (_, index) => product({ id: `RUN${index}`, title: `Running Shoes Model ${index}`, store: `Store ${index}`, price: 40 + index }));
+  const provider = scriptedProvider({ slip: [search({ text: 'running shoes' })], reply: [{ message: 'Many pairs.', productIds: [] }] });
+  const chat = createChatService(fakeEngine(shoes), registryOf(provider));
+  const first = await chat.handleMessage({ message: 'running shoes', providerId: 'offline', state: NEW_CONVERSATION });
+  const nearlyFull = { ...first.state, screenIds: shoes.slice(0, 192).map((shoe) => shoe.id) };
+  const last = await chat.handleLoadMore({ state: nearlyFull });
+  assert.equal(last.cards!.length, 8);
+  assert.equal(last.state.screenIds.length, 200);
+  assert.equal(last.hasMore, false, '18 shoes were left, but the screen is full');
+  assert.equal(last.notice, SCREEN_FULL_NOTE);
+  const beyond = await chat.handleLoadMore({ state: last.state });
+  assert.deepEqual(beyond.cards, []);
+  assert.equal(beyond.hasMore, false);
+});
+
+test('an ask that names an item in the form searches instead; an ask without one still asks', async () => {
+  const provider = scriptedProvider({
+    slip: [
+      { action: 'ask', question: 'Are there any Nike running shoes?', change: change({ text: 'running shoes', brand: 'Nike' }) },
+      { action: 'ask', question: 'Who is it for?', change: change({ gender: 'men' }) },
+    ],
+    reply: [{ message: 'Two Nike pairs.', productIds: [] }],
+  });
+  const chat = createChatService(fakeEngine(CATALOG, SHEETS), registryOf(provider));
+  const searched = await chat.handleMessage({ message: 'There are no Nike shoes at all?', providerId: 'offline', state: NEW_CONVERSATION });
+  assert.equal(searched.kind, 'results');
+  assert.deepEqual(searched.cards!.map((card) => card.id).sort(), ['SHOE1', 'SHOE2']);
+  const asked = await chat.handleMessage({ message: 'a gift', providerId: 'offline', state: NEW_CONVERSATION });
+  assert.equal(asked.kind, 'question');
+  assert.equal(asked.reply.text, 'Who is it for?');
 });
 
 test('a size the rules cannot read searches as a word instead of vanishing', async () => {

@@ -30,6 +30,8 @@ export type Conversation = Readonly<{
   /* -- More cards exist for the search on screen, and "Load more" is fetching them -- */
   hasMore: boolean;
   loadingMore: boolean;
+  /* -- A note under the cards from "Load more", such as reaching the most cards a screen holds -- */
+  listNote: string | null;
   state: ConversationState | null;
   send(message: string): void;
   chooseBrand(itemKey: string, choice: BrandChoice): void;
@@ -48,6 +50,7 @@ export function useConversation(providerId: string | null): Conversation {
   const [pending, setPending] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [listNote, setListNote] = useState<string | null>(null);
   const [state, setState] = useState<ConversationState | null>(null);
   const inFlight = useRef<AbortController | null>(null);
   const stateRef = useRef<ConversationState | null>(null);
@@ -70,9 +73,13 @@ export function useConversation(providerId: string | null): Conversation {
         uiLogger.info('turn', `${label}: ${result.kind}`, { cards: result.cards?.length ?? 'unchanged', hasMore: result.hasMore, ms: result.meta.ms }, result.messageId);
         if (result.kind === 'more') {
           setCards((current) => [...current, ...(result.cards ?? [])]);
+          setListNote(result.notice);
         } else {
           setItems((current) => [...current, { key: keyOf(), role: 'assistant', text: result.reply.text, kind: result.kind, notice: result.notice, brandQuestion: result.brandQuestion }]);
-          if (result.cards !== null) setCards(result.cards);
+          if (result.cards !== null) {
+            setCards(result.cards);
+            setListNote(null);
+          }
           if (result.cards !== null || result.kind === 'answer') setSearched(true);
         }
         if (result.hasMore !== null) setHasMore(result.hasMore);
@@ -125,6 +132,7 @@ export function useConversation(providerId: string | null): Conversation {
     setPending(false);
     setLoadingMore(false);
     setHasMore(false);
+    setListNote(null);
     setItems([]);
     setCards([]);
     setSearched(false);
@@ -132,5 +140,5 @@ export function useConversation(providerId: string | null): Conversation {
     uiLogger.info('turn', 'started over: chat, cards and slip cleared');
   }, []);
 
-  return { items, cards, searched, pending, hasMore, loadingMore, state, send, chooseBrand, loadMore, reset };
+  return { items, cards, searched, pending, hasMore, loadingMore, listNote, state, send, chooseBrand, loadMore, reset };
 }

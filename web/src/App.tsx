@@ -52,6 +52,7 @@ export function App() {
           pending={conversation.pending}
           hasMore={conversation.hasMore}
           loadingMore={conversation.loadingMore}
+          listNote={conversation.listNote}
           state={conversation.state}
           onOpenCard={onOpenCard}
           onLoadMore={conversation.loadMore}

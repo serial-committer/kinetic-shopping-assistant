@@ -1,12 +1,14 @@
 /* ---------------------------------------
     The top bar: the logo and the app name, the chat model dropdown (only providers set up on the server, or
-    "Search only"), and the theme switch. The logo has one version per theme; CSS shows the one that matches.
+    "Search only"), and the theme switch (an icon and its name; icon only on a phone). The logo has one version
+    per theme; CSS shows the one that matches.
 --------------------------------------- */
 
 import logoForDarkTheme from '../../../assets/kinetic-assist-dark.svg';
 import logoForLightTheme from '../../../assets/kinetic-assist.svg';
 import type { ProviderInfo } from '../../api/api-types.ts';
-import type { ThemeChoice } from '../../state/use-theme.ts';
+import { nextThemeChoice, type ThemeChoice } from '../../state/use-theme.ts';
+import { ThemeIcon } from './ThemeIcon.tsx';
 import './header.css';
 
 type HeaderProps = Readonly<{
@@ -18,8 +20,10 @@ type HeaderProps = Readonly<{
 }>;
 
 const THEME_LABEL: Readonly<Record<ThemeChoice, string>> = { auto: 'Auto', light: 'Light', dark: 'Dark' };
+const THEME_MEANING: Readonly<Record<ThemeChoice, string>> = { auto: 'follows your system', light: 'light', dark: 'dark' };
 
 export function Header({ providers, providerId, onProviderChange, theme, onThemeNext }: HeaderProps) {
+  const themeHint = `Theme: ${THEME_MEANING[theme]}. Click for ${THEME_LABEL[nextThemeChoice(theme)]}.`;
   return (
     <header className="app-header">
       <div className="app-brand">
@@ -42,8 +46,9 @@ export function Header({ providers, providerId, onProviderChange, theme, onTheme
             <option value="">Search only</option>
           </select>
         )}
-        <button type="button" className="pill-button theme-button" onClick={onThemeNext} aria-label={`Theme: ${THEME_LABEL[theme]}. Click to change.`}>
-          {THEME_LABEL[theme]}
+        <button type="button" className="pill-button theme-button" onClick={onThemeNext} title={themeHint} aria-label={themeHint}>
+          <ThemeIcon theme={theme} />
+          <span className="theme-label">{THEME_LABEL[theme]}</span>
         </button>
       </div>
     </header>

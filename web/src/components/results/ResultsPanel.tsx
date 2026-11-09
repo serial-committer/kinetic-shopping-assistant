@@ -1,6 +1,6 @@
 /* ---------------------------------------
     The products column: a summary of what the search used (the slip), then the cards, and "Load more" when the
-    search has more cards than are on screen. Before the first search it explains where products will appear;
+    search has more cards than are on screen (or a note when the screen holds the most cards it can). Before the first search it explains where products will appear;
     after a search with no match it says so (the reply says why).
 --------------------------------------- */
 
@@ -15,6 +15,7 @@ type ResultsPanelProps = Readonly<{
   pending: boolean;
   hasMore: boolean;
   loadingMore: boolean;
+  listNote: string | null;
   state: ConversationState | null;
   onOpenCard: (card: CardView, anchor: DOMRect) => void;
   onLoadMore: () => void;
@@ -24,7 +25,7 @@ type ResultsPanelProps = Readonly<{
 /* -- Cards arrive 8 at a time; the fade-in stagger restarts for each batch instead of growing with the list -- */
 const STAGGER_BATCH = 8;
 
-export function ResultsPanel({ cards, searched, pending, hasMore, loadingMore, state, onOpenCard, onLoadMore, onStartOver }: ResultsPanelProps) {
+export function ResultsPanel({ cards, searched, pending, hasMore, loadingMore, listNote, state, onOpenCard, onLoadMore, onStartOver }: ResultsPanelProps) {
   return (
     <section className="results-panel" aria-label="Products" aria-busy={pending || loadingMore}>
       <div className="results-header">
@@ -52,6 +53,11 @@ export function ResultsPanel({ cards, searched, pending, hasMore, loadingMore, s
           <button type="button" className="pill-button load-more" onClick={onLoadMore} disabled={loadingMore}>
             {loadingMore ? 'Loading...' : 'Load more'}
           </button>
+        </div>
+      )}
+      {cards.length > 0 && !hasMore && listNote && !pending && (
+        <div className="load-more-row">
+          <p className="load-more-note">{listNote}</p>
         </div>
       )}
     </section>

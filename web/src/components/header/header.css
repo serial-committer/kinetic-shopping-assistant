@@ -72,8 +72,36 @@
   gap: 10px;
 }
 
-.theme-button {
-  min-width: 72px;
+/* -- Wide enough for the longest name, so the header doesn't shift as the theme changes. Two classes, because
+      the shared .pill-button rule loads after this file -- */
+.header-controls .theme-button {
+  min-width: 88px;
+  padding-left: 13px;
+}
+
+/* -- A new icon turns in when the theme changes (the key on the svg remounts it) -- */
+.theme-icon {
+  flex: none;
+  animation: theme-icon-in var(--duration-ui) var(--ease-out);
+}
+
+@keyframes theme-icon-in {
+  from {
+    opacity: 0;
+    transform: rotate(-45deg) scale(0.7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-icon {
+    animation-name: theme-icon-fade;
+  }
+
+  @keyframes theme-icon-fade {
+    from {
+      opacity: 0;
+    }
+  }
 }
 
 /* -- The dropdown -- */
@@ -162,5 +190,15 @@
 
   .provider-select {
     max-width: 46vw;
+  }
+
+  /* -- Icon only, so the title keeps its room; the name stays in the tooltip and for screen readers -- */
+  .header-controls .theme-button {
+    min-width: 36px;
+    padding: 0;
+  }
+
+  .theme-label {
+    display: none;
   }
 }

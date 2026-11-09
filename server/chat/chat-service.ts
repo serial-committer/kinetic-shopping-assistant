@@ -8,7 +8,8 @@
         P12  write-reply      the chat model writes the words; code draws the cards and checks the words
     No provider set up, or a failed slip: search-only mode for that message (whole sentence as words, no filters).
     A brand button (handleBrandChoice) skips P6 and picks up at the search, because the button already says
-    exactly what changes.
+    exactly what changes. An "ask" that comes with an item in the form searches instead: the instructions say a
+    message that names an item is never too vague, and the local model sometimes asks the shopper's question back.
 --------------------------------------- */
 
 import { randomUUID } from 'node:crypto';
@@ -21,12 +22,13 @@ import { type BrandChoice, checkBrand } from '../slip/brand-gate.ts';
 import { fillSlip } from '../slip/fill-slip.ts';
 import { keepShopperWords } from '../slip/keep-words.ts';
 import { mergeSlip } from '../slip/merge-slip.ts';
+import { moveNamedBrand } from '../slip/named-brand.ts';
 import type { SlipChange, SlipForm } from '../slip/slip-form.ts';
 import { EMPTY_SLIP, type Slip } from '../slip/slip-types.ts';
 import { toCardViews, type CardView } from './card-view.ts';
 import { ChatFailure, type ChatProvider } from './chat-provider.ts';
-import { brandButtonLabel, brandQuestionText, CHAT_FAILED_NOTE, CHAT_OFF_NOTE, FIXED_QUESTION, wordButtonLabel } from './chat-wording.ts';
-import { type ConversationState, withTurns } from './conversation-state.ts';
+import { brandButtonLabel, brandQuestionText, CHAT_FAILED_NOTE, CHAT_OFF_NOTE, FIXED_QUESTION, SCREEN_FULL_NOTE, wordButtonLabel } from './chat-wording.ts';
+import { type ConversationState, MAX_SCREEN_CARDS, withTurns } from './conversation-state.ts';
 import type { ProviderRegistry } from './provider-registry.ts';
 import { SAFE_REPLY } from './reply-checks.ts';
 import { lowestPriceOnScreen, priceJustUnderScreen, rebuildScreenCards, screenLines } from './screen-cards.ts';
@@ -81,7 +83,9 @@ export function createChatService(engine: SearchEngine, providers: ProviderRegis
         return searchOnly(turn, message, state, CHAT_FAILED_NOTE);
       }
 
-      if (form.action === 'ask' || (form.action === 'search' && !form.change)) {
+      const askWithItem = form.action === 'ask' && form.change !== null && Boolean(form.change.text || form.change.brand);
+      if (askWithItem) logger.debug('P6', 'the model asked but also named an item in the form, so this searches instead', { question: form.question });
+      if ((form.action === 'ask' && !askWithItem) || (form.action === 'search' && !form.change)) {
         if (!form.question) logger.warn('P6', 'ask came back without a question, so the fixed question is shown');
         const question = form.question ?? FIXED_QUESTION;
         return finish(turn, 'question', { text: question, highlightIds: [] }, null, { ...state, history: withTurns(state.history, { role: 'shopper', text: message }, { role: 'assistant', text: question }) }, { action: 'ask' });
@@ -113,7 +117,8 @@ export function createChatService(engine: SearchEngine, providers: ProviderRegis
   /* ---------------------------------------
       "Load more": the same search again (P8 to P11) with every card already on screen excluded, the way "cheaper"
       excludes them, so the next 8 come back without any offset or page number to keep. No chat model is involved
-      and no message is added to the chat: the new cards go below the ones on screen.
+      and no message is added to the chat: the new cards go below the ones on screen. It stops at MAX_SCREEN_CARDS,
+      because the browser sends every id on screen with each request and the server reads only that many.
   --------------------------------------- */
   async function handleLoadMore({ state }: { state: ConversationState }): Promise<ChatTurnResult> {
     const turn: Turn = { messageId: newMessageId(), started: performance.now(), provider: null };
@@ -126,24 +131,37 @@ export function createChatService(engine: SearchEngine, providers: ProviderRegis
       });
       const excluded = new Set([...state.excludedGroups, ...shownGroups]);
       logger.info('turn', 'load more', { cardsOnScreen: state.screenIds.length, slip });
+      const room = MAX_SCREEN_CARDS - state.screenIds.length;
+      if (room <= 0) {
+        logger.info('turn', 'load more stopped: the screen already holds the most cards it can', { limit: MAX_SCREEN_CARDS });
+        return finish(turn, 'more', { text: '', highlightIds: [] }, [], state, { action: 'load-more', hasMore: false }, null, SCREEN_FULL_NOTE);
+      }
       const result = await engine.search({ text: slip.text, sort: slip.sort, filters: filtersFromSlip(slip, decision.kind === 'filter' ? decision.name : null, excluded) });
-      const nextState: ConversationState = { ...state, screenIds: [...state.screenIds, ...result.cards.map((card) => store.products[card.bestRow]!.id)] };
-      return finish(turn, 'more', { text: '', highlightIds: [] }, toCardViews(store, result.cards), nextState, { action: 'load-more', ranking: result.ranking, survivorCount: result.survivorCount, hasMore: result.hasMore });
+      const cards = result.cards.slice(0, room);
+      const screenIds = [...state.screenIds, ...cards.map((card) => store.products[card.bestRow]!.id)];
+      const full = screenIds.length >= MAX_SCREEN_CARDS && (result.hasMore || cards.length < result.cards.length);
+      if (full) logger.info('turn', 'load more reached the limit of cards on screen', { limit: MAX_SCREEN_CARDS });
+      return finish(turn, 'more', { text: '', highlightIds: [] }, toCardViews(store, cards), { ...state, screenIds }, { action: 'load-more', ranking: result.ranking, survivorCount: result.survivorCount, hasMore: result.hasMore && !full }, null, full ? SCREEN_FULL_NOTE : null);
     });
   }
 
   /* -- P7a to P7c, then the search. The brand gate may stop here and ask first -- */
   async function searchFromChange(turn: Turn, message: string, change: SlipChange, state: ConversationState, screen: readonly Card[]): Promise<ChatTurnResult> {
     logger.debug('P7a', 'slip before merge', { slip: state.slip, change });
-    const merged = mergeSlip(state.slip, change, screen.length);
+    const merged = mergeSlip(state.slip, change, screen.length, message);
+    if (merged.cheaperIgnoredBecause) logger.debug('P7a', 'the model said cheaper, but code set it aside', { because: merged.cheaperIgnoredBecause });
+    if (merged.sortDroppedBecause) logger.debug('P7a', 'the model sent a sort, but code set it aside', { sort: change.sort, because: merged.sortDroppedBecause });
     if (merged.newTopicByCode) logger.debug('P7a', 'new topic: the new search words share nothing with the saved ones, so this starts a new search', { saved: state.slip.text, incoming: change.text });
-    let excludedGroups = exclusionsAfter(change, merged.startedOver, state.excludedGroups);
+    let excludedGroups = exclusionsAfter(change, merged.startedOver, merged.cheaperRequested, state.excludedGroups);
     let slip = merged.slip;
     if (merged.cheaperRequested) {
       slip = { ...slip, maxPrice: priceJustUnderScreen(screen) ?? slip.maxPrice };
       excludedGroups = [...new Set([...excludedGroups, ...screen.map((card) => card.groupKey)])];
       logger.debug('P7a', 'cheaper than the cards on screen', { maxPrice: slip.maxPrice, excludedCards: excludedGroups.length });
     }
+    const named = moveNamedBrand(slip, change, message, store, state.brandChoices);
+    if (named.moved) logger.debug('P7a', 'a brand the model left in the words moved to the brand box', { brand: named.moved.asTyped, text: named.slip.text });
+    slip = named.slip;
     logger.debug('P7a', 'slip after merge', slip);
 
     const kept = keepShopperWords(message, slip);
@@ -223,8 +241,8 @@ export function createChatService(engine: SearchEngine, providers: ProviderRegis
 }
 
 /* -- Cards excluded by "cheaper" only make sense while that price cap stands: a new search or a new price resets them -- */
-function exclusionsAfter(change: SlipChange, startedOver: boolean, excluded: readonly string[]): readonly string[] {
-  if (startedOver || change.clear.includes('maxPrice') || (!change.cheaperThanShown && change.maxPrice !== null)) return [];
+function exclusionsAfter(change: SlipChange, startedOver: boolean, cheaperRequested: boolean, excluded: readonly string[]): readonly string[] {
+  if (startedOver || change.clear.includes('maxPrice') || (!cheaperRequested && change.maxPrice !== null)) return [];
   return excluded;
 }
 
